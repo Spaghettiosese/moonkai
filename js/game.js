@@ -316,7 +316,7 @@ const Game = {
     c.globalCompositeOperation = 'source-over';
     bigText(c, 'MOONKAI', W / 2, 120, 140, '#ffd35a', '#2a1200');
     bigText(c, 'HEROES  ·  VILLAINS  ·  COLLATERAL DAMAGE', W / 2, 200, 26, '#fff', '#000');
-    if (Math.sin(this.t * 4) > -0.3) bigText(c, 'PRESS ENTER', W / 2, H - 70, 40, '#fff', '#000');
+    if (Math.sin(this.t * 4) > -0.3) bigText(c, 'PRESS ENTER  ·  OR TAP', W / 2, H - 70, 40, '#fff', '#000');
     smallText(c, 'Proof of concept  ·  3 fighters  ·  6 transformation & ultimate cutscenes', W / 2, H - 30, 16, 'rgba(255,255,255,0.7)', 'center');
   },
 
@@ -364,7 +364,7 @@ const Game = {
       smallText(c, desc, 656, my + 18, 13, '#bbb');
       my += 44;
     }
-    smallText(c, '← / → (or A / D) to choose  ·  ENTER to fight  ·  opponent is a random CPU', W / 2, H - 14, 15, 'rgba(255,255,255,0.7)', 'center');
+    smallText(c, '← / → or A / D to choose, ENTER to fight  ·  touch: tap a fighter, tap again to fight  ·  opponent is a random CPU', W / 2, H - 14, 15, 'rgba(255,255,255,0.7)', 'center');
   },
 
   // ---------- end screen ----------
@@ -379,7 +379,7 @@ const Game = {
     bigText(c, `${w.def.name} WINS`, W / 2, 570, 44, w.def.color);
     smallText(c, `City damage: $${City.damage.toFixed(1)} billion  ·  ${City.destroyed} buildings destroyed`, W / 2, 610, 18, '#ffb080', 'center');
     smallText(c, w.def.side === 'VILLAIN' ? '"' + 'The city is quieter now." — ' + w.def.name : '"Sorry about the buildings." — ' + w.def.name, W / 2, 640, 16, '#ccc', 'center');
-    smallText(c, 'ENTER: rematch  ·  ESC: character select', W / 2, 680, 18, '#fff', 'center');
+    smallText(c, 'ENTER or TAP: rematch  ·  ESC: character select', W / 2, 680, 18, '#fff', 'center');
     c.globalAlpha = 1;
   },
 
@@ -432,7 +432,7 @@ const Game = {
         letterbox(c, ease.out(seg(cs.t, 0, 0.3)));
         smallText(c, cs.name, 24, 32, 16, 'rgba(255,255,255,0.6)');
       }
-      smallText(c, 'SPACE / ENTER to skip', W - 24, H - 22, 14, 'rgba(255,255,255,0.5)', 'right');
+      smallText(c, 'SPACE / ENTER / TAP to skip', W - 24, H - 22, 14, 'rgba(255,255,255,0.5)', 'right');
       return;
     }
     if (this.state === 'title') this.drawTitle(c);
