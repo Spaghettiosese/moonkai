@@ -60,7 +60,7 @@ class MenuScreen {
     if (nav('ok') && it.act) { Sfx.confirm(); it.act(); }
     else if (nav('back')) { Sfx.select(); if (this.opts.onBack) this.opts.onBack(); else UI.pop(); }
   }
-  rect(i) { const y0 = this.opts.y0 || 150, h = this.items.length > 9 ? 44 : 52; return { x: 70, y: y0 + i * (h + 6), w: 470, h }; }
+  rect(i) { const n = this.items.length, y0 = this.opts.y0 || (n > 11 ? 135 : 150), fit = Math.floor((H - 100 - y0) / n) - 6, h = Math.max(28, Math.min(n > 9 ? 44 : 52, fit)); return { x: 70, y: y0 + i * (h + 6), w: 470, h }; }
   hover(x, y) { this.items.forEach((it, i) => { const r = this.rect(i); if (x > r.x - 16 && x < r.x + r.w && y > r.y && y < r.y + r.h) this.i = i; }); }
   tap(x, y, mouse) { this.items.forEach((it, i) => { const r = this.rect(i); if (x > r.x - 16 && x < r.x + r.w && y > r.y && y < r.y + r.h) { if ((mouse || this.i === i) && it.act) { this.i = i; Sfx.confirm(); it.act(); } else this.i = i; } }); }
   draw(c) {
@@ -161,6 +161,7 @@ function settingsMenu() {
     tog('dmgNums', 'DAMAGE NUMBERS', 'Floating damage numbers.'),
     tog('hints', 'CONTROL HINTS', 'Show control hints at the start of fights.'),
     tog('hitboxes', 'SHOW HITBOXES', 'Draw hurtboxes (green) and hitboxes (red) everywhere.'),
+    { label: () => `PIXEL ART FIGHTERS: ${S.pixelArt === false ? 'OFF' : 'ON'}`, desc: 'Draw Aatrox, Kael, Seraph, Sion and Razor as pixel art. OFF uses their original art.', act() { S.pixelArt = S.pixelArt === false; for (const k in PortraitCache) delete PortraitCache[k]; sv(); }, left() { this.act(); }, right() { this.act(); } },
     { label: 'RESET SAVE DATA', desc: 'Erase records, achievements and settings.', act: () => { if (this && false) return; Save.data = Save.defaults(); Save.save(); Sfx.applyVolumes(); Game.announce('SAVE DATA RESET', '#ff5a5a', 80); } },
   ]);
 }
