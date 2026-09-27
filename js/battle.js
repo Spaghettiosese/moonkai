@@ -59,7 +59,7 @@ class Battle {
 
   startRound(first) {
     Arena.load(this.nextStage || this.stage); this.stage = Arena.stage; this.nextStage = null;
-    Combat.clear(); Game.fx.clear(); Game.texts = [];
+    Combat.clear(); Game.fx.clear(); Game.texts = []; this.timeStop = null;
     const W0 = Arena.stage.width;
     this.sides.forEach((s, i) => {
       s.members.forEach(f => { if (f.baseDef) f.def = f.baseDef; f.marks = {}; f.gauge = f.def.gauge ? (f.def.gauge.init || 0) : 0; if (f.def.onRoundStart) f.def.onRoundStart(f); f.corrupted = false; f.cheated = false; f.dbCount = 0; f.hp = f.maxHp; f.red = f.maxHp; f.shownHp = f.maxHp; f.keepForm = false; f.revived = false; f.form = false; f.reset(W0 / 2 + (i ? 260 : -260), i ? -1 : 1); f.state = 'benched'; f.x = -999; });
@@ -231,7 +231,9 @@ class Battle {
   tryTransform(f) {
     const F = f.def.form;
     if (!F || f.form || F.manual === false || this.state !== 'fight') { if (F && F.manual === false && !f.form) Game.popWorld(f.x, f.y - f.h - 30, F.hint || 'CAN\'T TRANSFORM YET', '#aaa', 18); return false; }
-    const cost = F.cost ?? 200;
+    const gate = f.def.transformGate ? f.def.transformGate(f) : null;
+    if (gate && !gate.ok) { Game.popWorld(f.x, f.y - f.h - 30, gate.msg || 'CAN\'T TRANSFORM', '#aab', 18); return false; }
+    const cost = gate && gate.cost !== undefined ? gate.cost : (F.cost ?? 200);
     if (f.meter < cost) { Game.popWorld(f.x, f.y - f.h - 30, `NEED ${cost / 100} BARS`, '#7df', 18); return false; }
     f.meter -= cost; f.state = 'stand'; f.vx = 0; f.move = null;
     if (Save.set.cutscenes === false) { f.enterForm(); return true; }
@@ -254,6 +256,7 @@ class Battle {
       Game.popWorld(t.x, t.y - t.h - 50, 'JUDGED BY THE DIVINE', '#ffe08a', 26);
     }
     if (t.def.reviveForm && !t.revived) { t.revived = true; t.hp = 1; this.pendingRevive = t; return; }
+    if (this.timeStop) this.endTimeStop();
     t.state = 'ko'; t.move = null; t.vy = Math.min(t.vy, -500); t.hp = 0;
     this.stats.perfect[t.side.idx] = false;
     const s = t.side;
@@ -318,13 +321,28 @@ class Battle {
     if (this.introIdx >= L.length) { a.sayT = b.sayT = 0; this.state = 'ready'; this.stateT = 0; }
     Cam.update(1 / FPS, this.points(), Arena.stage.width);
   }
+  // ---------- stopped time (DIO) ----------
+  startTimeStop(by, frames) {
+    this.timeStop = { by, t: frames, max: frames };
+    Game.popWorld(by.x, by.y - by.h - 50, 'TOKI WO TOMARE!', '#b8f07a', 26);
+    Sfx.bell && Sfx.bell(); Sfx.tone(180, 1.2, 'sine', 0.12, 60);
+  }
+  endTimeStop() {
+    const ts = this.timeStop; if (!ts) return;
+    this.timeStop = null;
+    for (const p of Combat.projectiles) p.tsFrozen = false;
+    Game.popWorld(ts.by.x, ts.by.y - ts.by.h - 50, 'TOKI WA UGOKIDASU', '#e8f0ff', 22);
+    Sfx.tone(60, 0.8, 'sine', 0.12, 180);
+  }
   stepFight() {
+    if (this.timeStop && --this.timeStop.t <= 0) this.endTimeStop();
     const pts = this.points();
     // controls first (assists may spawn), then everyone steps
     const ctls = new Map();
     for (const s of this.sides) for (const f of s.members) if (f.state !== 'benched') ctls.set(f, this.controlFor(f));
     for (const [f, c] of ctls) {
       if (f.leaving) continue;
+      if (this.timeStop && f.side !== this.timeStop.by.side) continue;
       const slow = f.side.enemy.point.form && f.side.enemy.point.def.form.timeSlowOpp;
       if (slow && this.frame % 3 === 0) continue;
       f.step(c);
@@ -341,7 +359,7 @@ class Battle {
     }
     if (Math.abs(p.x - q.x) > 1700) { const mid = (p.x + q.x) / 2; p.x = mid + Math.sign(p.x - mid) * 850; q.x = mid + Math.sign(q.x - mid) * 850; }
     Combat.update();
-    if (this.state === 'fight' && this.timeLimit && this.frame % FPS === 0 && !this.switchSide) {
+    if (this.state === 'fight' && this.timeLimit && this.frame % FPS === 0 && !this.switchSide && !this.timeStop) {
       this.timer--;
       if (this.timer <= 0) { this.timer = 0; this.timeOut(); }
     }

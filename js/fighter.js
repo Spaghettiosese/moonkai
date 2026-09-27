@@ -38,7 +38,7 @@ class Fighter {
   center() { return [this.x, this.y - this.h / 2]; }
   hand() { return [this.x + this.facing * 42 * this.scale, this.y - 80 * this.scale]; }
   mouth() { return [this.x + this.facing * 25 * this.scale, this.y - 86 * this.scale]; }
-  normalsTable() { return this.form && this.def.form.normals ? this.def.form.normals : this.def.normals; }
+  normalsTable() { if (this.def.normalsFor) { const nf = this.def.normalsFor(this); if (nf) return nf; } return this.form && this.def.form.normals ? this.def.form.normals : this.def.normals; }
   special(slot) { if (this.def.specialFor) { const sm = this.def.specialFor(this, slot); if (sm !== undefined) return sm; } const fs = this.form && this.def.form.moves; return (fs && fs[slot]) || this.def.moves[slot] || null; }
   spdMult() { let m = this.form && this.def.form.speed || 1; if (this.status.slow) m *= 0.6; if (this.status.haste) m *= 1.3; if (this.spark) m *= 1.08; return m; }
   dmgMult(t) { let m = this.form && this.def.form.dmg || 1; if (this.status.power) m *= 1.25; if (this.status.weaken) m *= 0.75; if (this.spark) m *= 1.1; if (this.def.passiveDmg) m *= this.def.passiveDmg(this, t); return m * Math.sqrt(this.def.bal || 1); }
@@ -71,6 +71,7 @@ class Fighter {
     if (d.lines.form) this.say(pick(d.lines.form), 150);
   }
   exitForm() {
+    if (this.def.onFormEnd) this.def.onFormEnd(this);
     this.form = false; this.formT = 0;
     Game.fx.burst(this.x, this.y - 60, 40, { color: ['#fff', this.def.color], size: 8, speed: 300, glow: true, life: 0.7 });
     Game.popWorld(this.x, this.y - 150, 'FORM FADES', '#ccc');

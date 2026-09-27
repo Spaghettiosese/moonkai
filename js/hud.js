@@ -55,6 +55,7 @@ const HUD = {
       c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(gx - 2, gy - 2, gw + 4, 10);
       if (G.pips) { for (let i = 0; i < G.max; i++) { const pw = gw / G.max; c.fillStyle = i < (f.gauge || 0) ? G.color : 'rgba(255,255,255,0.08)'; c.fillRect(gx + i * pw + 1, gy, pw - 2, 6); } }
       else { c.fillStyle = G.color; c.fillRect(L ? gx : gx + gw * (1 - v), gy, gw * v, 6); }
+      if (G.icon) G.icon(c, f, L ? gx + gw + 14 : gx - 14, gy + 3);
       smallText(c, G.name + (G.label ? ' ' + G.label(f) : ''), L ? gx : gx + gw, gy + 16, 10, G.color, L ? 'left' : 'right');
     }
     // guard gauge

@@ -105,7 +105,7 @@ function cpuControl(f, B) {
     const r = Math.random(), m = f.meter;
     // transformation / ultimate / charge
     const F = f.def.form;
-    if (F && F.manual !== false && !f.form && m >= (F.cost ?? 200) && (f.hp < f.maxHp * 0.75 || Math.random() < 0.25) && Math.random() < AI_P.meterUse[L]) { ai.plan = 'form'; }
+    if (F && F.manual !== false && !f.form && (!f.def.transformGate || f.def.transformGate(f).ok) && m >= (F.cost ?? 200) && (f.hp < f.maxHp * 0.75 || Math.random() < 0.25) && Math.random() < AI_P.meterUse[L]) { ai.plan = 'form'; }
     else if (dist > 520 && m < 300 && Math.random() < 0.18 && Math.abs(o.x - f.x) > 600) ai.plan = 'charge';
     else if (dist < reach && !o.airborne) ai.plan = r < AI_P.aggro[L] ? (Math.random() < 0.18 ? 'throw' : Math.random() < 0.3 ? 'low' : 'combo') : r < 0.85 ? 'block' : 'back';
     else if (dist < 320) ai.plan = r < 0.3 ? 'dash' : r < 0.45 ? 'jumpin' : r < 0.7 ? 'special' : r < 0.8 && L >= 2 ? 'sd' : 'walk';

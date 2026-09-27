@@ -67,7 +67,8 @@ const Combat = {
     // blocking
     const ctl = t.lastCtl || {};
     const holdingBack = ctl.x === dir;
-    const canBlock = ['stand', 'walk', 'crouch', 'cblock', 'block', 'air'].includes(t.state) || (t.state === 'dash' && t.dashDir < 0 && !t.airborne);
+    const frozen = B.timeStop && B.timeStop.by.side !== t.side;
+    const canBlock = !frozen && !(t.form && t.def.form && t.def.form.noBlock) && ['stand', 'walk', 'crouch', 'cblock', 'block', 'air'].includes(t.state) || (t.state === 'dash' && t.dashDir < 0 && !t.airborne);
     const crouching = ctl.y > 0 && !t.airborne;
     const guardOK = h.guard === 'mid' || (h.guard === 'low' && (crouching || t.airborne)) || (h.guard === 'high' && !crouching);
     if (canBlock && holdingBack && h.guard !== 'unblock' && guardOK) {
@@ -228,7 +229,7 @@ const Combat = {
       const sp = p.speed * (f.form && f.def.form.projSpeed || 1);
       this.projectiles.push(Object.assign({}, p, {
         owner: f, side: f.side, x: hx + (p.offX || 0) * f.facing, y: hy + (p.offY || 0), vx: Math.cos(a) * sp * f.facing, vy: Math.sin(a) * sp,
-        life: (p.life || 2) * FPS, t: 0, hitCount: 0, hitCd: 0, hitSet: new Set(), move: f.move, facing: f.facing,
+        tsFrozen: !!(Game.battle && Game.battle.timeStop && Game.battle.timeStop.by.side === f.side && !p.noFreeze), life: (p.life || 2) * FPS, t: 0, hitCount: 0, hitCd: 0, hitSet: new Set(), move: f.move, facing: f.facing,
       }));
     }
     Sfx.blast();
@@ -283,8 +284,10 @@ const Combat = {
   update() {
     const B = Game.battle;
     // projectiles
+    const TS = B && B.timeStop;
     for (const p of this.projectiles.slice()) {
       if (!this.projectiles.includes(p)) continue;
+      if (TS && (p.side !== TS.by.side || p.tsFrozen)) continue;
       p.t++;
       const tgt = p.owner.opp;
       if (p.homing && tgt && tgt.state !== 'ko') {
@@ -322,6 +325,7 @@ const Combat = {
     }
     // beams
     for (const bm of this.beams.slice()) {
+      if (TS && bm.owner.side !== TS.by.side) continue;
       const f = bm.owner, b = bm.b; bm.t++;
       if (f.state !== 'move' || f.move !== bm.move || bm.t > b.dur || (B.struggle && B.struggle.beams.indexOf(bm) < 0 && false)) { this.beams.splice(this.beams.indexOf(bm), 1); continue; }
       if (B.struggle) continue;
@@ -346,6 +350,7 @@ const Combat = {
     // hazards
     for (const h of this.hazards.slice()) {
       if (!this.hazards.includes(h)) continue;
+      if (TS && h.side !== TS.by.side && h.kind !== 'telegraph') continue;
       h.t++;
       const fn = this.hz[h.kind];
       if (!fn || fn.call(this, h) === false || h.life === 0) { const i = this.hazards.indexOf(h); if (i >= 0) this.hazards.splice(i, 1); }
