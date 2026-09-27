@@ -185,7 +185,7 @@ class MoveListScreen {
     R.push(['↓ + O  or  P', 'ULTIMATE · ' + d.ult.name, (d.ult.desc || '') + '  (3 bars, cinematic only if it connects)', '#ff9a6a']);
     if (d.form) {
       const F = d.form;
-      R.push([F.manual === false ? 'REVIVE' : 'U', 'AWAKEN · ' + F.name, (F.desc || '') + (F.manual === false ? '' : `  (${(F.cost ?? 200) / 100} bars${F.timed ? ', ' + F.timed + 's' : ', permanent for the round'})`), '#b9f']);
+      R.push([F.manual === false ? 'REVIVE' : 'U', 'AWAKEN · ' + F.name, (F.desc || '') + (F.manual === false ? '' : `  (${Math.min(METER_MAX, (F.cost ?? 200) + 100) / 100} bars, below ${Math.round((F.hpGate ?? 0.6) * 100)}% HP${F.timed ? ', ' + F.timed + 's' : ', permanent for the round'})`), '#b9f']);
       if (F.moves) for (const [slot, m] of Object.entries(F.moves)) R.push(['AWAKENED ' + SLOT_INPUT[slot], m.name, m.desc || '', '#b9f']);
       if (F.super) R.push(['AWAKENED O', F.super.name, F.super.desc || '', '#b9f']);
     }
@@ -502,7 +502,7 @@ const Modes = {
       const mk = () => battleCfg([F.p1.map(id => member(id, 'human1', { level: 2 })), F.p2.map((id, k) => member(id, 'cpu', { level: F.level, hpMult: F.hpMult || (F.boss ? 1.3 : 1), alt: F.p2.indexOf(id) !== k ? k : 0, form: F.boss && !F.form2 && id === F.p2[0] && i >= 10 }))], ch.stage, { boss: F.boss, music: F.boss ? 'boss' : undefined, rounds: 1, roundsToWin: 1 });
       let triggered = false;
       UI.replace(new BattleScreen(mk(), { mkCfg: mk, vsSplash: true, title: ch.title.toUpperCase(),
-        tick: B => { if (!F.form2 || triggered) return; const b = B.sides[1].point; if (b.hp < b.maxHp * 0.55 && B.state === 'fight' && b.state !== 'move' && b.state !== 'hit') { triggered = true; b.side.meter = Math.max(b.side.meter, 300); Game.announce('THE ENTITY AWAKENS', '#b36bff', 90); B.tryTransform(b); } },
+        tick: B => { if (!F.form2 || triggered) return; const b = B.sides[1].point; if (b.hp < b.maxHp * 0.55 && B.state === 'fight' && b.state !== 'move' && b.state !== 'hit') { triggered = true; b.side.meter = Math.max(b.side.meter, METER_MAX); Game.announce('THE ENTITY AWAKENS', '#b36bff', 90); B.tryTransform(b); } },
         onEnd: (r, B) => {
           if (r.winner === 0) UI.replace(new StoryScene(ch.post, { stage: ch.stage, onDone: complete }));
           else UI.replace(new ResultsScreen(B, r, { title: 'DEFEAT', items: [{ label: 'RETRY', act: fight }, { label: 'STORY MENU', act: () => UI.pop() }] }));
@@ -728,7 +728,7 @@ const TUTORIAL = [
   { title: 'Super', text: 'Press O to spend 1 bar on a Super. Cancel a normal or special into it for a combo. Land a Super.', onHit: (a, t, st) => { if (a.move && a.move.kind === 'super') st.flags.ok = true; } },
   { title: 'Vanish', text: 'Press K + L together to teleport behind the foe (1 bar). Great for extending combos.', init: (B, st) => { st.v0 = Save.rec.vanishes || 0; }, check: (B, st) => (Save.rec.vanishes || 0) > st.v0 },
   { title: 'Super Dash', text: 'Press Space for a homing Super Dash. It flies through projectiles, but a well-timed ↓+L swats it.', check: B => B.sides[0].point.state === 'sdash' },
-  { title: 'Awakening', text: 'Press U with enough meter to transform. Most forms last the whole round; a few broken ones are timed.', check: B => B.sides[0].point.form },
+  { title: 'Awakening', text: 'Press U to transform: it needs you below 60% health and one bar more meter than listed. Most forms last the whole round; a few broken ones are timed.', check: B => B.sides[0].point.form },
   { title: 'Ultimate', text: 'Press ↓ + O (or P) with 3 bars. Ultimates can be blocked or dodged: the cinematic only plays if it connects. Combo into it!', check: B => B.stats.ults[0] > 0 },
   { title: 'Sparking Blast', text: 'Press B once per match to break out of a combo and power up. Use it now.', check: B => !!B.sides[0].point.spark || B.sides[0].sparkUsed },
 ];

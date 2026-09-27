@@ -233,7 +233,9 @@ class Battle {
     if (!F || f.form || F.manual === false || this.state !== 'fight') { if (F && F.manual === false && !f.form) Game.popWorld(f.x, f.y - f.h - 30, F.hint || 'CAN\'T TRANSFORM YET', '#aaa', 18); return false; }
     const gate = f.def.transformGate ? f.def.transformGate(f) : null;
     if (gate && !gate.ok) { Game.popWorld(f.x, f.y - f.h - 30, gate.msg || 'CAN\'T TRANSFORM', '#aab', 18); return false; }
-    const cost = gate && gate.cost !== undefined ? gate.cost : (F.cost ?? 200);
+    const cost = Battle.formCost(f, gate);
+    const hpGate = F.hpGate ?? 0.6;
+    if (!(gate && gate.ok && gate.skipHp) && f.hp > f.maxHp * hpGate) { Game.popWorld(f.x, f.y - f.h - 30, `WOUNDED BELOW ${Math.round(hpGate * 100)}% TO AWAKEN`, '#aab', 18); return false; }
     if (f.meter < cost) { Game.popWorld(f.x, f.y - f.h - 30, `NEED ${cost / 100} BARS`, '#7df', 18); return false; }
     f.meter -= cost; f.state = 'stand'; f.vx = 0; f.move = null;
     if (Save.set.cutscenes === false) { f.enterForm(); return true; }
@@ -477,3 +479,5 @@ function csDestructive(loser, fromStage, toStage) {
     },
   };
 }
+// Awakening is a comeback tool: it costs one bar more than listed and needs the fighter hurt.
+Battle.formCost = (f, gate) => (gate && gate.cost !== undefined ? gate.cost : Math.min(METER_MAX, (f.def.form.cost ?? 200) + 100));

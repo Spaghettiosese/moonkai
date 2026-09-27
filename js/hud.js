@@ -74,7 +74,7 @@ const HUD = {
     const human = f.ctrl.startsWith('human');
     const tags = [];
     const F = f.def.form;
-    if (F && !f.form) tags.push(F.manual === false ? ['CORE INTACT', '#888'] : [s.meter >= (F.cost ?? 200) ? 'AWAKEN READY' + (human ? ' [U]' : '') : 'AWAKEN ' + ((F.cost ?? 200) / 100) + ' BARS', s.meter >= (F.cost ?? 200) ? '#ffd35a' : '#889']);
+    if (F && !f.form) tags.push(F.manual === false ? ['CORE INTACT', '#888'] : (() => { const g = f.def.transformGate && f.def.transformGate(f), c = Battle.formCost(f, g), hurt = f.hp <= f.maxHp * (F.hpGate ?? 0.6), ok = s.meter >= c && hurt && (!g || g.ok); return [ok ? 'AWAKEN READY' + (human ? ' [U]' : '') : !hurt ? 'AWAKEN · NEED WOUNDS' : 'AWAKEN ' + (c / 100) + ' BARS', ok ? '#ffd35a' : '#889']; })());
     if (f.form) tags.push([F.timed ? `${F.name} ${Math.ceil(f.formT / FPS)}s` : F.name, f.def.color]);
     tags.push([s.sparkUsed ? (f.spark ? 'SPARKING!' : 'SPARK USED') : 'SPARK' + (human ? ' [B]' : ''), s.sparkUsed ? (f.spark ? '#9cf' : '#555') : '#9cf']);
     if (f.def.ultLocked && f.def.ultLocked(f)) tags.push(['ULT LOCKED', '#888']);
