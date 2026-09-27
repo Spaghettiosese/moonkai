@@ -39,7 +39,7 @@ class Fighter {
   hand() { return [this.x + this.facing * 42 * this.scale, this.y - 80 * this.scale]; }
   mouth() { return [this.x + this.facing * 25 * this.scale, this.y - 86 * this.scale]; }
   normalsTable() { return this.form && this.def.form.normals ? this.def.form.normals : this.def.normals; }
-  special(slot) { const fs = this.form && this.def.form.moves; return (fs && fs[slot]) || this.def.moves[slot] || null; }
+  special(slot) { if (this.def.specialFor) { const sm = this.def.specialFor(this, slot); if (sm !== undefined) return sm; } const fs = this.form && this.def.form.moves; return (fs && fs[slot]) || this.def.moves[slot] || null; }
   spdMult() { let m = this.form && this.def.form.speed || 1; if (this.status.slow) m *= 0.6; if (this.status.haste) m *= 1.3; if (this.spark) m *= 1.08; return m; }
   dmgMult(t) { let m = this.form && this.def.form.dmg || 1; if (this.status.power) m *= 1.25; if (this.status.weaken) m *= 0.75; if (this.spark) m *= 1.1; if (this.def.passiveDmg) m *= this.def.passiveDmg(this, t); return m * Math.sqrt(this.def.bal || 1); }
   armorMult(a) { let m = this.form && this.def.form.armor || 1; if (this.status.fortify) m *= 0.75; if (this.def.passiveArmor) m *= this.def.passiveArmor(this, a); return m; }
@@ -77,6 +77,7 @@ class Fighter {
 
   // ---------- main step ----------
   step(ctl) {
+    if (this.def.stateStep && this.def.stateStep(this, ctl)) return;
     this.anim += 1 / FPS; this.st++;
     this.lastCtl = ctl;
     if (this.flash > 0) this.flash--;
@@ -265,6 +266,8 @@ class Fighter {
     let setVy = false, grav = true;
     if (m.vel) for (const [a, b, vx, vy] of m.vel) if (this.mf >= a && this.mf < b) { this.vx = vx * this.facing * this.spdMult(); if (vy !== null && vy !== undefined) { this.vy = vy; setVy = true; grav = false; } }
     if (m.ev && m.ev[this.mf]) m.ev[this.mf](this, m);
+    if (this.def.moveHook) this.def.moveHook(this, m, ctl);
+    if (this.move !== m) return;
     if (m.hit && this.mf >= m.s && this.mf < m.s + m.a) Combat.meleeFrame(this, m);
     if (this.grabbing) Combat.grabStep(this);
     // cancels (buffered)

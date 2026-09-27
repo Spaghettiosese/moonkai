@@ -241,6 +241,7 @@ class Battle {
   onKO(t, a, h) {
     if (t.state === 'ko') return;
     if (this.training) { t.hp = t.maxHp; t.red = t.maxHp; Game.popWorld(t.x, t.y - t.h - 40, 'HP RESET', '#7df', 24); return; }
+    if (t.def.onDeath && t.def.onDeath(t, a, h) === true) return;
     // World Ender style awakenings: cheat death once while the form is active
     if (t.form && t.def.form && t.def.form.cheatDeath && !t.cheated) {
       t.cheated = true; t.hp = t.red = Math.round(t.maxHp * t.def.form.cheatDeath); t.invul = 60; t.move = null; t.state = 'stand'; t.y = Math.min(t.y, 0);

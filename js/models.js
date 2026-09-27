@@ -579,6 +579,7 @@ function portrait(def, size = 96, opts = {}) {
   if (PortraitCache[k]) return PortraitCache[k];
   const cv = document.createElement('canvas'); cv.width = size; cv.height = size;
   const c = cv.getContext('2d');
+  if (def.drawPortrait) { c.scale(size / 100, size / 100); def.drawPortrait(c, opts); PortraitCache[k] = cv; return cv; }
   let F = faceConfig(def, opts.form);
   if (opts.alt) F = shiftModel(F, [0, 150, 240, 60][opts.alt % 4]);
   if (opts.expr) F.expr = opts.expr;

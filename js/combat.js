@@ -45,6 +45,7 @@ const Combat = {
   resolveHit(t, a, h, opts = {}) {
     const B = Game.battle;
     if (!B || t.state === 'ko' || t.state === 'benched' || t.state === 'tagout') return null;
+    if (t.def.onIncoming) { const ir = t.def.onIncoming(t, a, h, opts); if (ir !== undefined) return ir; }
     if (!opts.force) {
       if (t.invul > 0) return null;
       if ((opts.proj || opts.beam) && t.pinvul > 0) return null;
