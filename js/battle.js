@@ -62,7 +62,7 @@ class Battle {
     Combat.clear(); Game.fx.clear(); Game.texts = [];
     const W0 = Arena.stage.width;
     this.sides.forEach((s, i) => {
-      s.members.forEach(f => { if (f.baseDef) f.def = f.baseDef; f.corrupted = false; f.hp = f.maxHp; f.red = f.maxHp; f.shownHp = f.maxHp; f.keepForm = false; f.revived = false; f.form = false; f.reset(W0 / 2 + (i ? 260 : -260), i ? -1 : 1); f.state = 'benched'; f.x = -999; });
+      s.members.forEach(f => { if (f.baseDef) f.def = f.baseDef; f.corrupted = false; f.cheated = false; f.dbCount = 0; f.hp = f.maxHp; f.red = f.maxHp; f.shownHp = f.maxHp; f.keepForm = false; f.revived = false; f.form = false; f.reset(W0 / 2 + (i ? 260 : -260), i ? -1 : 1); f.state = 'benched'; f.x = -999; });
       s.point = s.members[0]; s.point.state = 'intro'; s.point.x = W0 / 2 + (i ? 260 : -260); s.point.y = 0;
       s.meter = this.training ? METER_MAX : first ? 100 : Math.max(s.meter, 100); s.combo = { hits: 0, dmg: 0, t: 0 }; s.assistCd = [0, 0];
       if (!first || !this.team) s.sparkUsed = s.sparkUsed && !this.training;
@@ -241,6 +241,12 @@ class Battle {
   onKO(t, a, h) {
     if (t.state === 'ko') return;
     if (this.training) { t.hp = t.maxHp; t.red = t.maxHp; Game.popWorld(t.x, t.y - t.h - 40, 'HP RESET', '#7df', 24); return; }
+    // World Ender style awakenings: cheat death once while the form is active
+    if (t.form && t.def.form && t.def.form.cheatDeath && !t.cheated) {
+      t.cheated = true; t.hp = t.red = Math.round(t.maxHp * t.def.form.cheatDeath); t.invul = 60; t.move = null; t.state = 'stand'; t.y = Math.min(t.y, 0);
+      Game.popWorld(t.x, t.y - t.h - 40, 'CHEATED DEATH!', t.def.color, 30); Game.fx.burst(t.x, t.y - 70, 60, { color: [t.def.color, '#000', '#fff'], size: 12, speed: 500, glow: true, life: 0.8 }); Cam.shake = 16; Sfx.roar && Sfx.roar();
+      return;
+    }
     // fallen god: KO'd while awakened by anyone who isn't divine -> rage and corrupt (once per round)
     if (t.def.corruptForm && t.form && !t.corrupted) {
       if (!(a && a.def && a.def.deity)) { t.corrupted = true; t.hp = 1; t.invul = 999; t.move = null; this.pendingCorrupt = t; return; }

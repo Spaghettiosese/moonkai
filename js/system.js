@@ -55,7 +55,7 @@ const ACHIEVEMENTS = [
   ['bars50', 'Big Spender', 'Spend 50 bars of Ki.'],
   ['destroy100', 'Urban Renewal', 'Destroy 100 structures.'],
   ['roster20', 'Well Rounded', 'Play 20 different fighters.'],
-  ['roster60', 'Completionist', 'Play all 61 fighters.'],
+  ['roster60', 'Completionist', 'Play every fighter.'],
   ['stages', 'World Tour', 'Fight on all 12 stages.'],
   ['team', 'Squad Goals', 'Win a 3v3 team match.'],
   ['clutch', 'Clutch', 'Win a team match with your last fighter under 10% health.'],
