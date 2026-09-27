@@ -177,3 +177,32 @@ function smallText(c, txt, x, y, size = 16, fill = '#fff', align = 'left') {
   c.font = `${size}px "Segoe UI", Roboto, Arial, sans-serif`; c.textAlign = align; c.textBaseline = 'middle';
   c.fillStyle = fill; c.fillText(txt, x, y);
 }
+
+// ---------- extra sfx for the expanded roster ----------
+Object.assign(Sfx, {
+  zap(delay = 0) { this.noise(0.18, 0.35, 6000, delay); this.tone(1600, 0.15, 'square', 0.08, 300, delay); },
+  ice(delay = 0) { this.tone(2400, 0.25, 'triangle', 0.1, 1200, delay); this.noise(0.15, 0.2, 5000, delay); },
+  clang() { this.tone(900, 0.25, 'square', 0.12, 850); this.tone(1350, 0.2, 'triangle', 0.08, 1300); },
+  rock(delay = 0) { this.noise(0.4, 0.5, 500, delay); this.tone(70, 0.3, 'sine', 0.4, 40, delay); },
+  slash() { this.noise(0.09, 0.3, 7000); this.tone(1200, 0.08, 'sawtooth', 0.06, 2400); },
+  heal() { this.tone(520, 0.3, 'sine', 0.12, 1040); this.tone(780, 0.3, 'sine', 0.08, 1560, 0.08); },
+  tick(delay = 0) { this.tone(2000, 0.04, 'square', 0.08, null, delay); },
+  card() { this.tone(1100, 0.08, 'triangle', 0.1, 1600); },
+  laser(dur = 1, delay = 0) { this.tone(1400, dur, 'sawtooth', 0.1, 900, delay); this.noise(dur, 0.25, 4000, delay); },
+  select() { this.tone(660, 0.07, 'square', 0.06, 880); },
+  confirm() { this.tone(440, 0.1, 'square', 0.08, 880); this.tone(880, 0.15, 'square', 0.06, 1320, 0.08); },
+  bell(delay = 0) { this.tone(880, 1.2, 'sine', 0.2, 870, delay); this.tone(1320, 1, 'sine', 0.08, 1310, delay); },
+});
+function roundRect(c, x, y, w, h, r) {
+  c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+}
+function hexA(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+function shadeHex(hex, amt) { // amt -1..1
+  const n = parseInt(hex.slice(1), 16);
+  const f = v => clamp(Math.round(amt < 0 ? v * (1 + amt) : v + (255 - v) * amt), 0, 255);
+  return '#' + [f((n >> 16) & 255), f((n >> 8) & 255), f(n & 255)].map(v => v.toString(16).padStart(2, '0')).join('');
+}

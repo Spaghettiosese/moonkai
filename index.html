@@ -17,7 +17,7 @@
   #touch .left [data-key="KeyA"] { grid-column: 1; grid-row: 2; }
   #touch .left [data-key="KeyD"] { grid-column: 3; grid-row: 2; }
   #touch .left [data-key="KeyS"] { grid-column: 2; grid-row: 2; }
-  #touch .right { grid-template-columns: repeat(2, 64px); }
+  #touch .right { grid-template-columns: repeat(3, 58px); }
   #touch button { width: 100%; height: 56px; border-radius: 50%; border: 2px solid rgba(255, 211, 90, 0.55);
     background: rgba(20, 14, 40, 0.55); color: #ffe9a8; font: 700 18px/1 Impact, "Arial Black", sans-serif;
     touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -39,18 +39,26 @@
     <button data-key="KeyS" aria-label="Block" class="small">BLOCK</button>
   </div>
   <div class="cluster right">
-    <button data-key="KeyL" class="small form" aria-label="Transform">FORM</button>
+    <button data-key="KeyU" class="small form" aria-label="Transform">FORM</button>
     <button data-key="KeyI" class="small ult" aria-label="Ultimate">ULT</button>
-    <button data-key="KeyK" aria-label="Special">K</button>
+    <button data-key="KeyO" class="small" aria-label="Dash">DASH</button>
+    <button data-key="KeyK" aria-label="Skill 1">K</button>
+    <button data-key="KeyL" aria-label="Skill 2">L</button>
     <button data-key="KeyJ" class="big" aria-label="Attack">HIT</button>
   </div>
 </div>
 
 <script src="js/core.js"></script>
+<script src="js/models.js"></script>
 <script src="js/characters.js"></script>
 <script src="js/world.js"></script>
-<script src="js/fighter.js"></script>
+<script src="js/stages.js"></script>
+<script src="js/abilities.js"></script>
 <script src="js/cutscenes.js"></script>
+<script src="js/cutscenes2.js"></script>
+<script src="js/roster.js"></script>
+<script src="js/fighter.js"></script>
+<script src="js/ai.js"></script>
 <script src="js/game.js"></script>
 <script src="js/touch.js"></script>
 </body>

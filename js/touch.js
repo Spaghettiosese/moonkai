@@ -4,8 +4,6 @@
 (function () {
   const press = code => { Sfx.init(); if (!Input.down.has(code)) Input.pressed.add(code); Input.down.add(code); };
   const release = code => Input.down.delete(code);
-  const tap = code => { press(code); setTimeout(() => release(code), 60); };
-
   const pad = document.getElementById('touch');
   const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
   if (pad && isTouch) pad.hidden = false;
@@ -17,24 +15,11 @@
     btn.addEventListener('pointercancel', up);
     btn.addEventListener('contextmenu', e => e.preventDefault());
   });
-
-  // Tapping the screen: focus for keyboard, start / pick fighter / skip cutscene / rematch
   canvas.tabIndex = 0;
   canvas.addEventListener('pointerdown', e => {
     canvas.focus(); Sfx.init();
     const r = canvas.getBoundingClientRect();
-    const x = (e.clientX - r.left) * W / r.width, y = (e.clientY - r.top) * H / r.height;
-    if (Game.cutscene) { tap('Space'); return; }
-    if (Game.state === 'title' || Game.state === 'end') { tap('Enter'); return; }
-    if (Game.state === 'select') {
-      const mb = Game.modeBtn;
-      if (x > mb.x && x < mb.x + mb.w && y > mb.y && y < mb.y + mb.h + 16) { Game.toggleMode(); return; }
-      const { cw, gap, x0 } = Game.cardLayout();
-      const i = Math.floor((x - x0) / (cw + gap));
-      if (y > 90 && y < 450 && i >= 0 && i < CHARACTERS.length && (x - x0) % (cw + gap) < cw) {
-        if (Game.sel === i) tap('Enter'); else Game.sel = i;
-      }
-    }
+    Game.tapAt((e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height);
   });
   focus();
 })();
