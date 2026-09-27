@@ -3,7 +3,6 @@
 //  health by its square root. Tuned from thousands of CPU-vs-CPU rounds.
 // ============================================================
 const BALANCE = {
-  "aurelion": 0.7,
   "abyss": 1.037,
   "arachna": 0.742,
   "astra": 0.875,

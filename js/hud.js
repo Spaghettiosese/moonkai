@@ -49,6 +49,14 @@ const HUD = {
     } else {
       for (let i = 0; i < B.roundsToWin; i++) { const cx = L ? bx + bw - 14 - i * 22 : bx + 14 + i * 22; circle(c, cx, by + bh + 18, 7, s.wins > i ? '#ffd35a' : 'rgba(0,0,0,0.6)'); c.strokeStyle = '#ffd35a'; c.lineWidth = 2; c.beginPath(); c.arc(cx, by + bh + 18, 7, 0, Math.PI * 2); c.stroke(); }
     }
+    // fighter-specific resource gauge
+    if (f.def.gauge) {
+      const G = f.def.gauge, gw = 210, gx = L ? bx : bx + bw - gw, gy = by + bh + 30, v = clamp((f.gauge || 0) / G.max, 0, 1);
+      c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(gx - 2, gy - 2, gw + 4, 10);
+      if (G.pips) { for (let i = 0; i < G.max; i++) { const pw = gw / G.max; c.fillStyle = i < (f.gauge || 0) ? G.color : 'rgba(255,255,255,0.08)'; c.fillRect(gx + i * pw + 1, gy, pw - 2, 6); } }
+      else { c.fillStyle = G.color; c.fillRect(L ? gx : gx + gw * (1 - v), gy, gw * v, 6); }
+      smallText(c, G.name + (G.label ? ' ' + G.label(f) : ''), L ? gx : gx + gw, gy + 16, 10, G.color, L ? 'left' : 'right');
+    }
     // guard gauge
     if (f.guard > 5) { c.fillStyle = 'rgba(0,0,0,0.5)'; c.fillRect(L ? bx : bx + bw - 160, by - 9, 160, 4); c.fillStyle = f.guard > 70 ? '#ff5a5a' : '#9cf'; c.fillRect(L ? bx : bx + bw - 160 * f.guard / 100, by - 9, 160 * f.guard / 100, 4); }
     // ---- bottom: Ki meter ----

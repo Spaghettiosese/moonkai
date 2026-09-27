@@ -18,7 +18,7 @@ class Fighter {
       x, y: 0, vx: 0, vy: 0, facing, state: 'stand', st: 0, move: null, mf: 0, anim: rand(0, 5),
       hitstun: 0, blockstun: 0, launched: false, kdHard: false, wbPending: false, gbPending: false, wbUsed: 0, gbUsed: 0,
       downT: 0, invul: 0, pinvul: 0, flash: 0, comboHits: 0, comboDmg: 0, jumps: 0, airDash: 0, usedAir: new Set(),
-      status: {}, buf: [], connected: null, hitMap: new Map(), guard: 0, guardT: 0, form: this.form && this.def.form && !this.def.form.timed && this.keepForm ? this.form : false,
+      status: {}, marks: {}, buf: [], connected: null, hitMap: new Map(), guard: 0, guardT: 0, form: this.form && this.def.form && !this.def.form.timed && this.keepForm ? this.form : false,
       formT: 0, spark: 0, sayText: null, sayT: 0, tauntT: 0, lastMove: null, lastCtl: {}, grabbedBy: null, grabT: 0, dashT: 0, sdash: null, charge: false,
       history: [], pose: 'idle', ai: {}, onGround: true, revived: this.revived && this.keepForm ? this.revived : false, counterHit: false, whiffRec: 0, clones: 0,
     });
@@ -62,6 +62,7 @@ class Fighter {
     const base = this.baseDef || this.def, C = base.corruptForm, d = Object.create(base);
     Object.assign(d, { form: C, portraitId: base.id + '_fallen', face: Object.assign({}, base.face, C.face), draw: C.draw, color: C.color || base.color, fx: C.ult.ult.fx,
       lines: Object.assign({}, base.lines, C.lines), passive: C.passive || base.passive, passiveTick: C.passiveTick, passiveDmg: C.passiveDmg, deity: false, ultLocked: null });
+    for (const k of ['onHit', 'specialFor', 'moveHook', 'drawPortrait', 'drawWorldBack', 'drawWorldFront', 'drawScreen', 'gauge', 'passiveArmor', 'onIncoming']) if (k in C) d[k] = C[k];
     if (C.normals) d.normals = C.normals;
     this.baseDef = base; this.def = d; this.corrupted = true; this.form = true; this.formT = 0;
     C.onStart && C.onStart(this);
@@ -86,6 +87,7 @@ class Fighter {
     if (this.sayT > 0) this.sayT--;
     if (this.spark > 0) { this.spark--; if (this.hp < this.red && this.state !== 'ko' && this.hp > 0) this.hp = Math.min(this.red, this.hp + 2); if (this.st % 3 === 0) Game.fx.add({ x: this.x + rand(-30, 30), y: this.y - rand(0, this.h), vx: 0, vy: -120, life: 0.4, size: 4, color: '#9cf', glow: true }); }
     this.shownHp = lerp(this.shownHp, this.hp, 0.06);
+    for (const k in this.marks) { const mk2 = this.marks[k]; if (mk2.t > 0 && --mk2.t <= 0) delete this.marks[k]; }
     for (const k in this.status) if (typeof this.status[k] === 'number' && k !== 'shield') { this.status[k] -= 1 / FPS; if (this.status[k] <= 0) delete this.status[k]; }
     if (this.status.shieldT === undefined && this.status.shield) delete this.status.shield;
     if (this.guardT > 0) this.guardT--; else this.guard = Math.max(0, this.guard - 0.4);
@@ -249,6 +251,7 @@ class Fighter {
     if (m.airOnly && !this.airborne) return false;
     this.move = m; this.mf = 0; this.state = 'move'; this.connected = null; this.hitMap = new Map(); this.moveLanded = false;
     this.lastMove = m; this.whiffRec = 0;
+    if (m.onStart) m.onStart(this, m);
     if (m.kind !== 'normal' && m.kind !== 'throw') { this.meter += 6; if (this.def.lines && this.def.lines.moves && Math.random() < 0.18) this.say(pick(this.def.lines.moves), 70); }
     if (!this.airborne && !m.vel) this.vx *= 0.3;
     if (m.air && this.airborne && !m.vel && !m.keepMomentum) this.vy = Math.min(this.vy, 0) * 0.3;
@@ -285,10 +288,11 @@ class Fighter {
     }
     if (m.counter && this.mf >= m.s && this.mf < m.s + m.a) this.countering = true; else this.countering = false;
     if (m.landEnd && this.mf > 3 && !this.airborne && this.vy >= 0) { this.endMove(4); return; }
-    if (this.mf >= total) { if (!this.connected && m.recoverWhiff && !this.whiffRec) { this.whiffRec = m.recoverWhiff; return; } this.endMove(0); return; }
+    if (this.mf >= total) { if (!this.connected && m.onWhiff && !this.whiffRec) m.onWhiff(this, m); if (!this.connected && m.recoverWhiff && !this.whiffRec) { this.whiffRec = m.recoverWhiff; return; } this.endMove(0); return; }
     this.physics(grav, setVy);
   }
   endMove(landLag) {
+    const em = this.move; if (em && em.onEnd) em.onEnd(this, em);
     this.move = null; this.countering = false;
     this.state = this.airborne ? 'air' : 'stand';
     if (landLag) { this.state = 'move'; this.move = { name: 'land', pose: 'crouch', s: 0, a: 0, r: landLag, kind: 'normal', level: -1 }; this.mf = 0; }

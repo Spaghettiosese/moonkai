@@ -62,7 +62,7 @@ class Battle {
     Combat.clear(); Game.fx.clear(); Game.texts = [];
     const W0 = Arena.stage.width;
     this.sides.forEach((s, i) => {
-      s.members.forEach(f => { if (f.baseDef) f.def = f.baseDef; f.corrupted = false; f.cheated = false; f.dbCount = 0; f.hp = f.maxHp; f.red = f.maxHp; f.shownHp = f.maxHp; f.keepForm = false; f.revived = false; f.form = false; f.reset(W0 / 2 + (i ? 260 : -260), i ? -1 : 1); f.state = 'benched'; f.x = -999; });
+      s.members.forEach(f => { if (f.baseDef) f.def = f.baseDef; f.marks = {}; f.gauge = f.def.gauge ? (f.def.gauge.init || 0) : 0; if (f.def.onRoundStart) f.def.onRoundStart(f); f.corrupted = false; f.cheated = false; f.dbCount = 0; f.hp = f.maxHp; f.red = f.maxHp; f.shownHp = f.maxHp; f.keepForm = false; f.revived = false; f.form = false; f.reset(W0 / 2 + (i ? 260 : -260), i ? -1 : 1); f.state = 'benched'; f.x = -999; });
       s.point = s.members[0]; s.point.state = 'intro'; s.point.x = W0 / 2 + (i ? 260 : -260); s.point.y = 0;
       s.meter = this.training ? METER_MAX : first ? 100 : Math.max(s.meter, 100); s.combo = { hits: 0, dmg: 0, t: 0 }; s.assistCd = [0, 0];
       if (!first || !this.team) s.sparkUsed = s.sparkUsed && !this.training;
@@ -382,9 +382,11 @@ class Battle {
     Arena.drawBack(c, Game.t);
     c.save(); Cam.apply(c);
     Arena.drawWorld(c, Game.t);
+    for (const f of this.all()) if (f.def.drawWorldBack) f.def.drawWorldBack(c, f, this);
     Combat.drawBack(c, Game.t);
     const fs = this.all().filter(f => f.state !== 'benched').sort((a, b) => (a.state === 'move' ? 1 : 0) - (b.state === 'move' ? 1 : 0));
     for (const f of fs) f.draw(c);
+    for (const f of fs) { if (f.def.drawWorldFront) f.def.drawWorldFront(c, f, this); this.drawMarks(c, f); }
     Combat.drawFront(c, Game.t);
     Game.fx.draw(c);
     Game.drawWorldTexts(c);
@@ -392,9 +394,23 @@ class Battle {
     Game.debugBoxes = [];
     c.restore();
     Arena.drawFront(c, Game.t);
+    for (const f of this.all()) if (f.def.drawScreen) f.def.drawScreen(c, f, this);
     if (this.freezeT > 0) this.drawFreeze(c);
     if (this.struggle) this.drawStruggle(c);
     HUD.draw(c, this);
+  }
+  drawMarks(c, f) {
+    const ks = Object.keys(f.marks || {}); if (!ks.length || f.state === 'benched') return;
+    let row = 0;
+    for (const k of ks) {
+      const m = f.marks[k], y = f.y - f.h - 34 - row * 16, n = m.n, w = 11;
+      for (let i = 0; i < Math.min(n, m.max); i++) {
+        const x = f.x - (Math.min(n, m.max) - 1) * w / 2 + i * w;
+        c.fillStyle = m.color; c.strokeStyle = '#000'; c.lineWidth = 1.5;
+        c.beginPath(); c.moveTo(x, y - 6); c.lineTo(x + 5, y); c.lineTo(x, y + 6); c.lineTo(x - 5, y); c.closePath(); c.fill(); c.stroke();
+      }
+      row++;
+    }
   }
   drawFreeze(c) {
     const f = this.freezeBy, m = this.freezeMove, k = this.freezeT;

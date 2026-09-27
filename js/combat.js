@@ -87,6 +87,7 @@ const Combat = {
       const [cx, cy] = t.center();
       Game.fx.burst(cx - dir * t.w / 2, cy, 10, { color: '#9cf', size: 6, speed: 220, glow: true, life: 0.25 });
       if (h.ultConnect) opts.blockedUlt = true;
+      if (opts.move && opts.move.onBlock && a instanceof Fighter) opts.move.onBlock(a, t, h);
       return 'block';
     }
     // hit
@@ -112,6 +113,8 @@ const Combat = {
     t.side.meter = clamp(t.side.meter + dmg * 0.1, 0, METER_MAX);
     if (!a.world && a.def.onHit) a.def.onHit(a, t, dmg, h);
     if (t.def.onHurt && !a.world) t.def.onHurt(t, a, dmg, h);
+    if (opts.move && opts.move.onHit && !a.world) opts.move.onHit(a, t, dmg, h);
+    if (h.mark && !a.world) Combat.mark(t, a, h.mark.name, h.mark.n || 1, h.mark);
     if (h.status) { for (const [k, v] of Object.entries(h.status)) t.status[k] = Math.max(t.status[k] || 0, v); }
     if (h.stun) t.status.stun = Math.max(t.status.stun || 0, h.stun);
     if (h.pull) { t.vx = (a.x - t.x) * 3; }
@@ -135,6 +138,8 @@ const Combat = {
       if (h.wb && t.wbUsed < 1) { t.wbPending = true; t.kdPending = true; }
       if (h.gb && t.gbUsed < 1) { t.gbPending = true; t.kdPending = true; }
       t.comboHits++; t.comboDmg += dmg;
+      // flip: thrown over the attacker to the other side
+      if (h.flip && !a.world) { t.x = clamp(a.x - a.facing * (a.w / 2 + t.w / 2 + 24), 40, Arena.stage.width - 40); t.vx = -a.facing * Math.abs(h.kb[0]) * 0.4; t.facing = a.facing; }
     }
     // presentation
     const heavy = h.sfx === 'h' || dmg > 90, light = h.sfx === 'l';
@@ -151,6 +156,29 @@ const Combat = {
     return 'hit';
   },
 
+  // ---------- marks: stackable debuffs owned by an attacker, drawn above the target ----------
+  mark(t, owner, name, n = 1, o = {}) {
+    const cur = t.marks[name] || { n: 0 };
+    const m = t.marks[name] = { n: Math.min(o.max || 9, cur.n + n), t: Math.round((o.dur || 6) * FPS), color: o.color || '#fff', owner, label: o.label || name, max: o.max || 9 };
+    if (o.onMax && m.n >= m.max) o.onMax(t, owner, m);
+    return m.n;
+  },
+  markCount(t, name) { return t.marks && t.marks[name] ? t.marks[name].n : 0; },
+  consumeMark(t, name) { const n = this.markCount(t, name); if (t.marks) delete t.marks[name]; return n; },
+  // ---------- zone strike: resolve one hit against every enemy overlapping a world rect ----------
+  strikeZone(f, rect, hit, opts = {}) {
+    let res = null;
+    for (const t of this.targets(f.side)) {
+      if (!rectsOverlap(rect, t.rect())) continue;
+      const r = this.resolveHit(t, f, H_(Object.assign({ box: [0, 0, 1, 1] }, hit)), Object.assign({ move: f.move, fromX: f.x }, opts));
+      if (r) { res = res === 'hit' ? res : r; if (opts.each) opts.each(t, r); }
+    }
+    if (res && !opts.noConnect) f.connected = res === 'hit' ? 'hit' : 'block';
+    if (Save.set.hitboxes) Game.debugBoxes.push({ r: rect, col: 'rgba(255,40,40,0.35)' });
+    return res;
+  },
+  // ground telegraph: fills up over `life` frames, then calls onFire(h)
+  telegraph(owner, o) { return this.addHazard(Object.assign({ kind: 'telegraph', owner, side: owner.side, r: 90, life: 45, color: '#fff' }, o)); },
   counterTrigger(t, a) {
     const cm = t.move.counter; t.countering = false;
     Game.popWorld(t.x, t.y - t.h - 40, 'COUNTER STANCE!', t.def.color, 24); Sfx.clang();
@@ -351,6 +379,7 @@ const Combat = {
     return res;
   },
   hz: {
+    telegraph(h) { if (h.follow && h.follow.state !== 'ko') h.x = lerp(h.x, h.follow.x, h.track || 0); if (h.t >= h.life) { h.onFire && h.onFire(h); return false; } return true; },
     spike(h) { // erupts under a spot after delay
       const d = (h.delay || 0.45) * FPS;
       if (h.t === Math.round(d)) { Sfx.slam(); Game.fx.burst(h.x, 0, 18, { color: h.colors || [h.color || '#b36bff', '#fff'], size: 9, speed: 320, angle: -Math.PI / 2, spread: 0.5, life: 0.5 }); this.hitArea(h, { x: h.x - 30, y: -(h.height || 160), w: 60, h: h.height || 160 }, { kb: [60, -900], hs: 30 }); Arena.hit(h.x - 30, h.x + 30, -60, 40, Game.fx); }
@@ -507,6 +536,14 @@ const Combat = {
     c.restore(); c.globalCompositeOperation = 'source-over';
   },
   drawHz: {
+    telegraph(c, h) {
+      const k = Math.min(1, h.t / h.life);
+      c.save(); c.strokeStyle = hexA(h.color, 0.9); c.lineWidth = 3; c.setLineDash([10, 6]); c.lineDashOffset = -h.t * 2;
+      c.beginPath(); c.ellipse(h.x, -2, h.r, h.r * 0.22, 0, 0, Math.PI * 2); c.stroke(); c.setLineDash([]);
+      c.fillStyle = hexA(h.color, 0.18 + 0.3 * k); c.beginPath(); c.ellipse(h.x, -2, h.r * k, h.r * 0.22 * k, 0, 0, Math.PI * 2); c.fill();
+      if (h.column) { c.fillStyle = hexA(h.color, 0.06 + 0.12 * k); c.fillRect(h.x - h.r * 0.5, -900, h.r, 900); }
+      c.restore();
+    },
     spike(c, h) {
       const d = (h.delay || 0.45) * FPS;
       if (h.t < d) { ellipse(c, h.x, 4, 34, 8, hexA(h.tele || h.color || '#b36bff', 0.3 + h.t / d * 0.5)); return; }
