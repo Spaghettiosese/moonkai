@@ -46,3 +46,44 @@ rival('aatrox', 'aurelion', [[0, 'Another god. I have killed gods.'], [1, 'You h
   { aatrox: 'Your heaven is next.', aurelion: 'Crawl back into your sword, demon.' });
 rival('aatrox', 'kael', [[1, "There's something in your sword. Same as my chest."], [0, 'Then you know. The prison is the only thing that is truly yours.']],
   { aatrox: 'Break your core, boy. Become what you are.', kael: "I'm not you. I'll never be you." });
+
+// ============================================================
+//  VOLIBEAR, the Relentless Storm (fighter #63, League of Legends tribute)
+//  Thundering Smash, Frenzied Maul, Sky Splitter, Stormbringer. Demigod: counts as divine.
+// ============================================================
+fighter({
+  id: 'volibear', name: 'VOLIBEAR', title: 'The Relentless Storm', side: 'ANTI-HERO', role: 'Juggernaut · Lightning · Dive', color: '#7ad8ff', color2: '#0a1a3a',
+  bio: 'An ancient demigod of the Freljord, a colossal thunder-bear who remembers when the world belonged to storms. Cities are just forests that forgot to be afraid of him.',
+  quote: 'The storm does not ask. It takes.',
+  ending: 'Volibear decides Metro City is too soft and leaves for the mountains. Every thunderstorm since is described by meteorologists as "somehow angry".',
+  hp: 1100, walk: 250, deity: true, scale: 1.12, rival: 'volt',
+  model: { build: 'giant', skin: '#e8ecf4', top: '#3a4a6a', topDark: '#1a2a4a', pants: '#2a3a5a', boots: '#1a2030', belt: '#7ad8ff', bracers: '#7ad8ff', pads: { color: '#9aa8c0' },
+    animal: { type: 'wolf', color: '#eef2fa', eye: 'rgba(120,220,255,1)' }, eyes: { glow: '#7ad8ff' }, weapon: { type: 'claws', color: '#cfe8ff' }, emblem: { shape: 'bolt', color: '#7ad8ff' } },
+  face: { expr: 'angry', eyes: '#7ad8ff', animal: { type: 'wolf', color: '#eef2fa', eye: 'rgba(120,220,255,1)' } },
+  style: { reach: 1.15, power: 1.12, speed: 1.12, heavy: true },
+  passive: ['The Relentless Storm', 'Each hit crackles with lightning: every 3rd hit deals 30 bonus damage.'],
+  onHit(a, t) { if (a.move && /Maul/.test(a.move.name) && (t.status.slow || t.status.stun)) Combat.healSelf(a, 90); a.stormCount = (a.stormCount || 0) + 1; if (a.stormCount % 3 === 0 && t.hp > 1) { t.hp = Math.max(1, t.hp - 30); Game.fx.burst(t.x, t.y - 70, 10, { color: ['#7ad8ff', '#fff'], size: 6, speed: 300, glow: true, life: 0.3 }); } },
+  moves: {
+    '6S': Mv.rush({ name: 'Thundering Smash', desc: 'Charges forward and slams the foe into a stun.', s: 10, speed: 1200, frames: 18, hit: { dmg: 85, kb: [200, -300], stun: 0.6 } }),
+    '5S': Mv.custom({ name: 'Frenzied Maul', desc: 'A savage bite. Heals if the foe is stunned or slowed.', pose: 'heavy', s: 11, a: 5, r: 20, hit: { dmg: 80, box: [0, -120, 80, 90], kb: [300, -150] }, onHit: (a, t) => { if (t.status.slow || t.status.stun) Combat.healSelf(a, 90); }, ai: { min: 0, max: 60, use: 'combo' } }),
+    '2S': Mv.place({ name: 'Sky Splitter', desc: 'Calls a lightning bolt on the foe; it slows.', spawn: { kind: 'strike', at: 'enemy', delay: 0.55, dmg: 90, style: 'bolt', color: '#7ad8ff', wide: 60, status: { slow: 2 } }, ai: { min: 200, max: 1600, use: 'zone' } }),
+    '4S': Mv.buff({ name: 'Storm Shield', desc: 'Wraps himself in a lightning shield.', effects: { shield: 160 }, dur: 5 }),
+    'jS': Mv.dive({ name: 'Thunderclap', desc: 'Crashes down like a lightning strike.', vx: 400, vy: 1500, hit: { dmg: 90, box: [0, -80, 100, 80], gb: true, kb: [200, 900] } }),
+  },
+  super: Sup.place({ name: 'Frozen Thunder', desc: 'Five lightning bolts march across the screen.', spawn: { kind: 'strike', at: 'enemy', delay: 0.3, count: 5, spacing: 110, stagger: 0.1, dmg: 60, style: 'bolt', color: '#7ad8ff', wide: 44 } }),
+  ult: { act: 'strike', name: 'STORMBRINGER', desc: 'Leaps into the sky and crashes down as the storm itself. Must connect.', dmg: 1120, template: 'storm', style: 'bolt', color: '#7ad8ff', wide: 70,
+    fx: { el: 'bolt', color: '#7ad8ff', sky: ['#050a1a', '#1a2a4a', '#4a6a9a'], lines: ['I AM THE STORM!', 'Kneel before the thunder.'] } },
+  form: { name: 'STORMBRINGER', desc: 'Permanent. Grows into a titanic thunder-bear: armored, lightning on every swing.', cost: 200, dmg: 1.12, armor: 0.88, speed: 0.95, scale: 1.2,
+    model: { aura: '#7ad8ff', auraSize: 1.4, animal: { type: 'wolf', color: '#f8fbff', eye: 'rgba(160,240,255,1)' }, pads: { color: '#cfe8ff' }, top: '#2a3a6a' },
+    moves: { '5S': Mv.custom({ name: 'Storm Maul', desc: 'Electrified bite that launches.', pose: 'heavy', s: 10, a: 6, r: 18, hit: { dmg: 95, box: [0, -130, 90, 100], kb: [400, -800], launch: true, status: { slow: 1.5 } }, ai: { min: 0, max: 70, use: 'combo' } }) } },
+  assist: '2S',
+  lines: {
+    intro: ['You smell of cities, {opp}.', 'The old ways return.', 'I have wrestled mountains. You are a pebble.'],
+    win: ['The storm passes. You do not.', 'Weak. Like all of this new world.', 'Remember the thunder, {opp}.'],
+    taunt: ['RRAAAGH!', 'Hah!'], form: ['I AM THE STORM!', 'RRRROOOOAR!'], ult: ['STORMBRINGER!'], ultHit: ['The old gods walk again.'], tag: ['Stand back!'], enter: ['The storm arrives!'], assist: ['Thunder!'],
+  },
+});
+rival('volibear', 'aatrox', [[0, 'Darkin. You reek of the old war.'], [1, 'And you of wet fur and pride, bear.']],
+  { volibear: 'Back to your sword, prisoner.', aatrox: 'Even gods of storms can bleed.' });
+rival('volibear', 'volt', [[1, "Whoa, big guy. I'm also lightning themed. Can we share?"], [0, 'No.']],
+  { volibear: 'There is only ONE storm.', volt: 'Sorry, big fella. Faster wins.' });
