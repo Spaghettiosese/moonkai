@@ -46,20 +46,25 @@
   const J = { lift: [0, 0, .06, .16, .2, .14, .02, 0], kn: [.7, 1.2, 0, .4, 1.3, .5, 1.1, .35], th: [.35, .65, -.1, .25, 1, .35, .55, .18],
     sh: [-.5, -.8, 2.7, 2.4, 1.4, 2, -.6, .1], el: [.3, .3, .1, .3, .9, .4, .3, .2], lean: [.2, .35, -.05, 0, .1, 0, .3, .1], flap: [0, -.3, .8, .4, -.4, .2, -.2, 0] };
   const A = { sh: [3.3, 3.7, 2.5, 1.3, .8, .4], el: [.5, .6, .2, .05, .1, .4], lean: [-.12, -.18, .1, .28, .3, .08], far: [.4, .5, -.3, -.6, -.5, 0], wrot: [.8, .9, .4, .2, .3, 1.6] };
+  // Keyframed moves are sampled with interpolation, so they can use any number of frames.
+  const samp = (arr, t) => { const x = ((t % 1) + 1) % 1 * arr.length, i = Math.floor(x), j = (i + 1) % arr.length, f = x - i; return arr[i] + (arr[j] - arr[i]) * f; };
+  const K = { th: [.15, 1.1, 1.9, 1.9, 1.4, .6, .15], kn: [.1, 1.7, .15, .05, .9, .5, .1], lean: [0, -.1, -.28, -.28, -.15, -.05, 0] };
   const ANIMS = {
-    idle: { n: 6, fps: 6, f(t, i, n) { const s = Math.sin(TAU * t); return { lean: .02, lift: 0, bob: s > .2 ? 1 : 0, legs: [{ th: .1, kn: .04 }, { th: -.08, kn: .02 }],
+    idle: { n: 8, fps: 8, f(t, i, n) { const s = Math.sin(TAU * t); return { lean: .02, lift: 0, bob: s > .2 ? 1 : 0, legs: [{ th: .1, kn: .04 }, { th: -.08, kn: .02 }],
       arms: [{ sh: .12 + .03 * s, el: .25 }, { sh: -.08 - .03 * s, el: .2 }], blink: i === n - 1, sway: s * .06, flap: s * .15, wrot: 2.3 }; } },
-    walk: { n: 8, fps: 10, f(t) { const p = TAU * t, s = Math.sin(p), c = Math.cos(p); return { lean: .06, lift: 0,
+    walk: { n: 12, fps: 14, f(t) { const p = TAU * t, s = Math.sin(p), c = Math.cos(p); return { lean: .06, lift: 0,
       legs: [{ th: .5 * s, kn: .9 * Math.max(0, c) + .05 }, { th: -.5 * s, kn: .9 * Math.max(0, -c) + .05 }],
       arms: [{ sh: -.45 * s, el: .3 + .2 * Math.max(0, -s) }, { sh: .45 * s, el: .3 + .2 * Math.max(0, s) }], sway: -c * .12, flap: s * .2, wrot: 2.2 }; } },
-    run: { n: 8, fps: 12, f(t) { const p = TAU * t, s = Math.sin(p), c = Math.cos(p); return { lean: .25, lift: .03 * Math.abs(s),
+    run: { n: 10, fps: 16, f(t) { const p = TAU * t, s = Math.sin(p), c = Math.cos(p); return { lean: .25, lift: .03 * Math.abs(s),
       legs: [{ th: .85 * s + .1, kn: 1.5 * Math.max(0, c) + .2 }, { th: -.85 * s + .1, kn: 1.5 * Math.max(0, -c) + .2 }],
       arms: [{ sh: -.9 * s, el: 1.5 }, { sh: .9 * s, el: 1.5 }], sway: -c * .25 - .2, flap: s * .3, wrot: 1.8 }; } },
-    jump: { n: 8, fps: 10, f(t, i) { return { lean: J.lean[i], lift: J.lift[i], legs: [{ th: J.th[i], kn: J.kn[i] }, { th: J.th[i] - .25, kn: J.kn[i] * .9 }],
-      arms: [{ sh: J.sh[i], el: J.el[i] }, { sh: J.sh[i] - .3, el: J.el[i] + .1 }], sway: i >= 2 && i <= 4 ? .3 : -.1, flap: J.flap[i], wrot: 2.2 }; } },
-    attack: { n: 6, fps: 12, f(t, i) { return { lean: A.lean[i], lift: 0, legs: [{ th: .4, kn: .45 }, { th: -.4, kn: .12 }],
-      arms: [{ sh: A.sh[i], el: A.el[i] }, { sh: A.far[i], el: .5 }], sway: A.lean[i], flap: .1, wrot: A.wrot[i], swoosh: i >= 2 && i <= 4 ? [A.sh[i - 1], A.sh[i]] : null }; } },
-    hover: { n: 6, fps: 8, f(t) { const s = Math.sin(TAU * t); return { lean: .05, lift: .07 + .02 * s, legs: [{ th: .15, kn: .5 }, { th: .35, kn: .7 }],
+    jump: { n: 12, fps: 14, f(t) { const k = key => samp(J[key], t); return { lean: k('lean'), lift: k('lift'), legs: [{ th: k('th'), kn: k('kn') }, { th: k('th') - .25, kn: k('kn') * .9 }],
+      arms: [{ sh: k('sh'), el: k('el') }, { sh: k('sh') - .3, el: k('el') + .1 }], sway: t >= .25 && t < .6 ? .3 : -.1, flap: k('flap'), wrot: 2.2 }; } },
+    attack: { n: 10, fps: 16, f(t) { const k = key => samp(A[key], t); return { lean: k('lean'), lift: 0, legs: [{ th: .4, kn: .45 }, { th: -.4, kn: .12 }],
+      arms: [{ sh: k('sh'), el: k('el') }, { sh: k('far'), el: .5 }], sway: k('lean'), flap: .1, wrot: k('wrot'), swoosh: t >= .3 && t < .8 ? [samp(A.sh, t - .15), k('sh')] : null }; } },
+    kick: { n: 10, fps: 16, f(t) { const k = key => samp(K[key], t); return { lean: k('lean'), lift: 0, legs: [{ th: k('th'), kn: k('kn') }, { th: -.25, kn: .15 }],
+      arms: [{ sh: .7, el: 1.7 }, { sh: -.4, el: 1.3 }], sway: k('lean'), flap: .1, wrot: 2.2, kickTrail: t >= .25 && t < .6 ? [samp(K.th, t - .14), k('th')] : null }; } },
+    hover: { n: 8, fps: 10, f(t) { const s = Math.sin(TAU * t); return { lean: .05, lift: .07 + .02 * s, legs: [{ th: .15, kn: .5 }, { th: .35, kn: .7 }],
       arms: [{ sh: .35, el: .3 }, { sh: .2, el: .4 }], sway: s * .1, flap: s * .9, wrot: 2.3 }; } },
   };
 
@@ -260,6 +265,13 @@
       X.globalAlpha = 1; X.lineCap = 'butt';
     }
 
+    if (pose.kickTrail) {
+      const phi = a => Math.PI / 2 - a, L0 = R.legs[0], rad = P.thigh + P.shin;
+      X.globalAlpha = .85; X.lineCap = 'round';
+      X.strokeStyle = '#ffffff'; X.lineWidth = Math.max(1.5, P.H * .03); X.beginPath(); X.arc(L0.h[0], L0.h[1], rad, phi(pose.kickTrail[0]), phi(pose.kickTrail[1]), pose.kickTrail[1] > pose.kickTrail[0]); X.stroke();
+      X.strokeStyle = C.accent; X.lineWidth = Math.max(1, P.H * .012); X.beginPath(); X.arc(L0.h[0], L0.h[1], rad - P.H * .03, phi(pose.kickTrail[0]), phi(pose.kickTrail[1]), pose.kickTrail[1] > pose.kickTrail[0]); X.stroke();
+      X.globalAlpha = 1; X.lineCap = 'butt';
+    }
     // snap to palette: crisp pixels, no stray anti-aliased colours
     const pal = [...used].map(hexToRgba), d = X.getImageData(0, 0, W, Hc).data, out = new Uint8ClampedArray(d.length);
     for (let q = 0; q < d.length; q += 4) {
@@ -289,7 +301,7 @@
   }
   const fill = () => { for (const [k, , kind] of FIELDS.concat([['anim']])) { const el = $('#ch_' + k); if (kind === 'check') el.checked = !!opts[k]; else el.value = opts[k]; } };
   const read = () => { for (const [k, , kind] of FIELDS.concat([['anim']])) { const el = $('#ch_' + k); opts[k] = kind === 'check' ? el.checked : (k === 'heads' || k === 'size') ? +el.value : el.value; } };
-  const animList = () => opts.anim === 'all' ? ['idle', 'walk', 'run', 'jump', 'attack'].concat(opts.wings !== 'none' ? ['hover'] : []) : [opts.anim];
+  const animList = () => opts.anim === 'all' ? ['idle', 'walk', 'run', 'jump', 'attack', 'kick'].concat(opts.wings !== 'none' ? ['hover'] : []) : [opts.anim];
   function rebuild() {
     read(); store.set('pxs.char', opts);
     cache = animList().flatMap(a => Array.from({ length: ANIMS[a].n }, (_, i) => drawCharacter(opts, a, i)));
