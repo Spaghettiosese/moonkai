@@ -669,7 +669,7 @@ function renderLayers() {
     tmpCtx.putImageData(new ImageData(L.cels[cur.frame], doc.w, doc.h), 0, 0);
     thumb(row.querySelector('canvas'), tmp);
     row.onclick = () => { cur.layer = i; renderLayers(); };
-    row.ondblclick = () => { const n = prompt('Layer name', L.name); if (n) { L.name = n; renderLayers(); autosave(); } };
+    row.ondblclick = async () => { const n = await ask('Rename layer', L.name); if (n) { L.name = n; renderLayers(); autosave(); } };
     row.querySelector('.eye').onclick = e => { e.stopPropagation(); L.visible = !L.visible; afterEdit(); };
     row.querySelector('.lock').onclick = e => { e.stopPropagation(); L.locked = !L.locked; renderLayers(); };
     box.appendChild(row);
@@ -831,9 +831,50 @@ function autosave() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => { if (!store.set('pxs.autosave', serialize())) console.warn('Autosave skipped: storage full'); }, 1200);
 }
-function download(blob, name) {
+// Inside a claude.ai artifact, files go through the viewer's downloads capability.
+const dlCap = window.claude?.use ? window.claude.use('downloads').catch(() => null) : Promise.resolve(null);
+async function download(blob, name) {
+  const cap = await dlCap;
+  if (cap) {
+    try { await cap.save({ filename: name, data: blob }); toast('Saved ' + name); }
+    catch (e) { if (e?.code !== 'declined') toast(e?.code === 'rate_limited' ? 'A save prompt is already open' : 'Download is not available here. Right click the image to save it.'); }
+    return;
+  }
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+// In-page replacements for prompt/confirm, plus a result window. Some embeds block downloads,
+// so exports are also shown here where they can be saved with right click or long press.
+const dlg = $('#askDlg');
+function ask(title, value = '', { input = true, ok = 'OK', cancel = 'Cancel', text = '' } = {}) {
+  $('#askTitle').textContent = title; $('#askText').textContent = text;
+  const inp = $('#askInput'); inp.hidden = !input; inp.value = value;
+  $('#askOk').textContent = ok; $('#askCancel').textContent = cancel;
+  dlg.returnValue = ''; dlg.showModal(); if (input) inp.select();
+  return new Promise(r => dlg.addEventListener('close', () => r(dlg.returnValue === 'ok' ? (input ? inp.value.trim() : true) : (input ? null : false)), { once: true }));
+}
+function showResult(blob, name) {
+  const box = $('#resultBody'); box.innerHTML = '';
+  $('#resultTitle').textContent = name;
+  const fr = new FileReader();
+  fr.onload = () => {
+    if (blob.type.startsWith('image/')) {
+      const img = new Image(); img.src = fr.result; img.alt = name; box.appendChild(img);
+      box.insertAdjacentHTML('beforeend', '<p class="hint">Right click or long press the image to save it.</p>');
+    } else {
+      const ta = document.createElement('textarea'); ta.id = 'resultText'; ta.readOnly = true; box.appendChild(ta);
+      blob.text().then(t => ta.value = t);
+      box.insertAdjacentHTML('beforeend', '<p class="hint">Copy this text and keep it somewhere safe. Paste it back with Open → Paste.</p>');
+    }
+  };
+  fr.readAsDataURL(blob);
+  $('#resultDownload').onclick = () => download(blob, name);
+  $('#resultCopy').hidden = blob.type.startsWith('image/');
+  $('#resultCopy').onclick = async () => {
+    const ta = $('#resultText');
+    try { await navigator.clipboard.writeText(ta.value); toast('Copied'); } catch { ta.select(); toast('Press Ctrl+C to copy'); }
+  };
+  $('#resultDlg').showModal();
 }
 function rgbaToBlob(data, w, h) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -846,8 +887,14 @@ function structural(fn) { pushUndo('full'); fn(); refreshAll(); }
 function eachCel(fn) { for (const c of layer().cels) fn(c); }
 const act = {
   new() { $('#newDlg').showModal(); },
-  open() { $('#fileProject').click(); },
-  save() { download(new Blob([JSON.stringify(serialize())], { type: 'application/json' }), 'artwork.pxs.json'); toast('Project saved'); },
+  async open() {
+    const r = await ask('Open project', '', { input: false, ok: 'Choose file', cancel: 'Paste text', text: 'Open a .pxs.json file, or paste project text you copied from Save.' });
+    if (r) return $('#fileProject').click();
+    if (dlg.returnValue !== 'cancel') return;
+    const t = await ask('Paste project text', '');
+    if (t) try { await deserialize(JSON.parse(t)); toast('Project opened'); } catch (e) { toast(e.message || 'That text is not a project'); }
+  },
+  save() { showResult(new Blob([JSON.stringify(serialize())], { type: 'application/json' }), 'artwork.pxs.json'); },
   export() { $('#exportDlg').showModal(); },
   import() { $('#fileImage').click(); },
   ref() { $('#fileRef').click(); },
@@ -871,8 +918,8 @@ const act = {
     doc.palette = [...seen].sort((a, b) => b[1] - a[1]).slice(0, 64).map(e => e[0]);
     renderPalette(); autosave(); toast(`Extracted ${doc.palette.length} colours`);
   },
-  palSave() {
-    const n = prompt('Palette name', ui.palName.replace('★', ''));
+  async palSave() {
+    const n = await ask('Save palette as', ui.palName.replace('★', ''));
     if (!n) return;
     const all = customPalettes(); all[n] = doc.palette.slice(); store.set('pxs.palettes', all);
     ui.palName = '★' + n; renderPalSelect(); toast('Palette saved');
@@ -943,7 +990,7 @@ document.addEventListener('click', e => {
 });
 $('#fps').addEventListener('change', e => { doc.fps = clamp(+e.target.value || 8, 1, 60); e.target.value = doc.fps; autosave(); });
 $('#refOpacity').addEventListener('input', e => { ui.refOpacity = e.target.value / 100; req(); });
-$('#themeSel').addEventListener('change', e => { document.documentElement.dataset.theme = e.target.value; store.set('pxs.theme', e.target.value); makeChecker(); req(); });
+$('#themeSel').addEventListener('change', e => { document.documentElement.dataset.ui = e.target.value; store.set('pxs.theme', e.target.value); makeChecker(); req(); });
 
 // ---------- dialogs & files ----------
 const sp = $('#sizePresets');
@@ -966,24 +1013,24 @@ $('#exportDlg').addEventListener('close', async () => {
   const frames = type === 'png' ? [cur.frame] : [...Array(doc.frames).keys()];
   const imgs = frames.map(f => upscale(frameRGBA(f), doc.w, doc.h, scale, smooth));
   const { w, h } = imgs[0];
-  if (type === 'png') return download(await rgbaToBlob(imgs[0].data, w, h), `frame${cur.frame + 1}.png`);
+  if (type === 'png') return showResult(await rgbaToBlob(imgs[0].data, w, h), `frame${cur.frame + 1}.png`);
   if (type === 'gif') {
     if (w * h * imgs.length > 4e7) toast('Large GIF — this may take a moment');
     const bytes = encodeGIF(imgs.map(i => i.data), w, h, Math.max(2, Math.round(100 / doc.fps)));
-    return download(new Blob([bytes], { type: 'image/gif' }), 'animation.gif');
+    return showResult(new Blob([bytes], { type: 'image/gif' }), 'animation.gif');
   }
   const cols = +$('#xCols').value || imgs.length, rows = Math.ceil(imgs.length / cols);
   const c = document.createElement('canvas'); c.width = cols * w; c.height = rows * h;
   const x = c.getContext('2d');
   imgs.forEach((im, i) => x.putImageData(new ImageData(im.data, w, h), (i % cols) * w, (i / cols | 0) * h));
-  c.toBlob(b => download(b, 'spritesheet.png'));
+  c.toBlob(b => showResult(b, 'spritesheet.png'));
 });
 const readFile = (inp, fn) => inp.addEventListener('change', async () => { const f = inp.files[0]; inp.value = ''; if (f) try { await fn(f); } catch (err) { toast(err.message || 'Could not open file'); } });
 readFile($('#fileProject'), async f => { await deserialize(JSON.parse(await f.text())); toast('Project opened'); });
 readFile($('#fileRef'), async f => { ui.ref = await loadImg(URL.createObjectURL(f)); ui.refShow = true; $('[data-toggle="refShow"]').classList.add('on'); req(); toast('Reference loaded'); });
 readFile($('#fileImage'), async f => {
   const img = await loadImg(URL.createObjectURL(f));
-  const snap = confirm('Snap imported colours to the current palette?\n(OK = snap, Cancel = keep original colours)');
+  const snap = await ask('Import image', '', { input: false, ok: 'Snap to palette', cancel: 'Keep colours', text: 'Match the imported colours to the current palette?' });
   const k = Math.min(doc.w / img.width, doc.h / img.height), w = img.width * k, h = img.height * k;
   scratchCtx.clearRect(0, 0, doc.w, doc.h); scratchCtx.imageSmoothingEnabled = true; scratchCtx.imageSmoothingQuality = 'high';
   scratchCtx.drawImage(img, (doc.w - w) / 2, (doc.h - h) / 2, w, h);
@@ -1014,7 +1061,7 @@ function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.ad
 // ---------- boot ----------
 (async function boot() {
   const theme = store.get('pxs.theme', 'midnight');
-  document.documentElement.dataset.theme = theme; $('#themeSel').value = theme;
+  document.documentElement.dataset.ui = theme; $('#themeSel').value = theme;
   Object.assign(ui, store.get('pxs.view', {}));
   for (const k of ['grid', 'smooth', 'onion', 'symX', 'symY', 'refShow']) document.querySelector(`[data-toggle="${k}"]`)?.classList.toggle('on', ui[k]);
   makeChecker(); resizeView(); renderTools(); renderToolOpts(); renderBrushPresets();

@@ -1,14 +1,14 @@
-:root, [data-theme="midnight"] {
+:root, [data-ui="midnight"] {
   --bg: #15121f; --panel: #1e1a2c; --panel2: #272238; --line: #372f4f;
   --text: #e9e4f7; --dim: #9a92b5; --accent: #ff6fae; --accent2: #8f7bff;
   --stage: #0f0c17; --checkA: #3a3450; --checkB: #2e2942;
 }
-[data-theme="sakura"] {
+[data-ui="sakura"] {
   --bg: #fdf1f5; --panel: #fff8fb; --panel2: #fbe4ee; --line: #f0c9da;
   --text: #4a2d3d; --dim: #9a7488; --accent: #e8508f; --accent2: #7a6cf0;
   --stage: #f6e3ec; --checkA: #ffffff; --checkB: #efe6ee;
 }
-[data-theme="mono"] {
+[data-ui="mono"] {
   --bg: #161616; --panel: #1f1f1f; --panel2: #292929; --line: #383838;
   --text: #e6e6e6; --dim: #8f8f8f; --accent: #4fc3f7; --accent2: #9ccc65;
   --stage: #0d0d0d; --checkA: #3a3a3a; --checkB: #2e2e2e;
@@ -123,3 +123,9 @@ dialog menu { display: flex; justify-content: flex-end; gap: 6px; padding: 0; ma
   body { overflow: auto; grid-template: "top top" 46px "tools stage" 62vh "tools time" 118px "panel panel" auto / 54px 1fr; }
   #panel { border-left: none; }
 }
+#askInput { width: 100%; margin-top: 8px; }
+#resultBody img { display: block; max-width: 100%; max-height: 60vh; margin: 0 auto; image-rendering: pixelated;
+  background: repeating-conic-gradient(var(--checkA) 0 25%, var(--checkB) 0 50%) 0 0 / 16px 16px; }
+#resultText { width: 100%; height: 180px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; font: 11px ui-monospace, monospace; }
+body { color-scheme: dark; }
+[data-ui="sakura"] body, [data-ui="sakura"] { color-scheme: light; }

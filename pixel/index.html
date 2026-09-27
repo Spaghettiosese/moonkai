@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="midnight">
+<html lang="en" data-ui="midnight">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -208,6 +208,23 @@
     </div>
     <p class="hint">Anime tips: sketch on the Guide layer, lay flat colours on Flats, use the Shade tool with hue-shift on Shading, and add a crisp 1px pixel-perfect outline on Line Art. Turn on Smooth to preview a softer look, and export with Scale2x for smooth edges.</p>
     <menu><button value="ok" class="primary">Close</button></menu>
+  </form>
+</dialog>
+
+<dialog id="askDlg">
+  <form method="dialog">
+    <h2 id="askTitle"></h2>
+    <p id="askText" class="hint"></p>
+    <input id="askInput" spellcheck="false">
+    <menu><button value="cancel" id="askCancel">Cancel</button><button value="ok" id="askOk" class="primary">OK</button></menu>
+  </form>
+</dialog>
+
+<dialog id="resultDlg">
+  <form method="dialog">
+    <h2 id="resultTitle"></h2>
+    <div id="resultBody"></div>
+    <menu><button type="button" id="resultCopy">Copy text</button><button type="button" id="resultDownload">Download</button><button value="ok" class="primary">Close</button></menu>
   </form>
 </dialog>
 
