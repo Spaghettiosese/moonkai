@@ -34,7 +34,7 @@ const Input = { down: new Set(), pressed: new Set() };
 addEventListener('keydown', e => {
   if (!Input.down.has(e.code)) Input.pressed.add(e.code);
   Input.down.add(e.code);
-  if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+  if ((['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code) || /^F[1-9]$/.test(e.code))) e.preventDefault();
   Sfx.init();
 });
 addEventListener('keyup', e => Input.down.delete(e.code));

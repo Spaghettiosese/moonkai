@@ -99,6 +99,25 @@ class BattleScreen {
     if (tapped('F3', 'Digit3')) { d.tech = !d.tech; Sfx.select(); }
     if (tapped('F4', 'Digit4')) { B.showBoxes = !B.showBoxes; Sfx.select(); }
     if (tapped('KeyR', 'Pad0Back')) resetPositions(B);
+    const me = B.sides[0].point, dm = B.sides[1].point;
+    // F5: awaken yourself instantly (skips the health/meter requirement) or drop back out
+    if (tapped('F5', 'Digit5') && me.def.form) {
+      if (me.form) { me.exitForm(); Game.popWorld(me.x, me.y - me.h - 30, 'FORM OFF', '#aab', 18); }
+      else { me.move = null; me.state = 'stand'; if (Save.set.cutscenes === false) me.enterForm(); else Game.playCutscene(Cutscenes.transform(me), () => me.enterForm()); }
+      Sfx.select();
+    }
+    // F6: awaken the dummy too
+    if (tapped('F6', 'Digit6') && dm.def.form) { if (dm.form) dm.exitForm(); else dm.enterForm(); Sfx.select(); }
+    // F7: your health 100 / 60 / 30 / 10 % (test comeback mechanics and the awaken gate)
+    if (tapped('F7', 'Digit7')) { B.myHp = cycle([1, 0.6, 0.3, 0.1], B.myHp || 1); me.hp = me.red = Math.round(me.maxHp * B.myHp); Sfx.select(); }
+    // F8: dummy health 100 / 50 / 15 / 5 % (test executes and low-HP effects)
+    if (tapped('F8', 'Digit8')) { B.dumHp = cycle([1, 0.5, 0.15, 0.05], B.dumHp || 1); dm.hp = dm.red = Math.round(dm.maxHp * B.dumHp); Sfx.select(); }
+    // F9: clear the damage log
+    const D = B.dmgLog = B.dmgLog || { cur: 0, last: 0, best: 0, total: 0, hits: 0 };
+    if (tapped('F9', 'Digit9')) { Object.assign(D, { cur: 0, last: 0, best: 0, total: 0, hits: 0 }); Sfx.select(); }
+    const cb = B.sides[0].combo;
+    if (cb.dmg > D.cur) { D.total += cb.dmg - D.cur; D.cur = cb.dmg; D.hits = cb.hits; D.best = Math.max(D.best, D.cur); }
+    else if (cb.dmg === 0 && D.cur > 0) { D.last = D.cur; D.lastHits = D.hits; D.cur = 0; }
   }
   tap(x, y) { if (Math.abs(x - W / 2) < 60 && y < 80) Input.pressed.add('Escape'); else if (this.opts.attract) Input.pressed.add('Enter'); }
   draw(c) {

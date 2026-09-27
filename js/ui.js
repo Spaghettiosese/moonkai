@@ -127,7 +127,7 @@ function mainMenu() {
       { label: '3v3 VS PLAYER 2', desc: 'Team battle with a friend.', act: () => Modes.versus(3, 2) },
       { label: 'CPU VS CPU', desc: 'Pick both sides and watch the AI fight.', act: () => Modes.versus(1, 0) },
     ])) },
-    { label: 'TRAINING', desc: 'Practice with a dummy. Frame data, input display, hitboxes, infinite meter.', act: () => Modes.training() },
+    { label: 'TRAINING', desc: 'Practice with a dummy. Frame data, damage log, instant awaken, HP presets, hitboxes, infinite meter.', act: () => Modes.training() },
     { label: 'CHALLENGES', desc: 'Tutorial lessons and per-character combo trials.', act: () => UI.push(new MenuScreen('CHALLENGES', [
       { label: 'TUTORIAL', desc: '14 lessons covering every system in the game.', act: () => Modes.tutorial() },
       { label: 'COMBO TRIALS', desc: 'Seven trials for each of the 67 fighters.', act: () => Modes.trials() },

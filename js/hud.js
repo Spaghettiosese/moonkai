@@ -106,14 +106,21 @@ const HUD = {
   },
   training(c, B) {
     const d = B.dummy;
-    c.fillStyle = 'rgba(0,0,0,0.55)'; roundRect(c, 20, 130, 250, 118, 8); c.fill();
+    c.fillStyle = 'rgba(0,0,0,0.55)'; roundRect(c, 20, 130, 250, 203, 8); c.fill();
     smallText(c, 'TRAINING', 32, 146, 13, '#7df');
-    const rows = [['F1 Dummy', d.action.toUpperCase()], ['F2 Guard', d.guard.toUpperCase()], ['F3 Tech', d.tech ? 'ON' : 'OFF'], ['F4 Hitboxes', B.showBoxes ? 'ON' : 'OFF'], ['R Reset position', '']];
+    const rows = [['F1 Dummy', d.action.toUpperCase()], ['F2 Guard', d.guard.toUpperCase()], ['F3 Tech', d.tech ? 'ON' : 'OFF'], ['F4 Hitboxes', B.showBoxes ? 'ON' : 'OFF'], ['F5 Awaken (you)', B.sides[0].point.form ? 'ON' : 'OFF'], ['F6 Awaken (dummy)', B.sides[1].point.form ? 'ON' : 'OFF'], ['F7 Your HP', Math.round((B.myHp || 1) * 100) + '%'], ['F8 Dummy HP', Math.round((B.dumHp || 1) * 100) + '%'], ['F9 Clear damage', ''], ['R Reset position', '']];
     rows.forEach(([a, b], i) => { smallText(c, a, 32, 166 + i * 17, 12, '#bcd'); smallText(c, b, 258, 166 + i * 17, 12, '#fff', 'right'); });
     // input display
-    c.fillStyle = 'rgba(0,0,0,0.5)'; roundRect(c, 20, 256, 130, 16 + B.inputLog.length * 16, 8); c.fill();
-    B.inputLog.slice().reverse().forEach((e, i) => smallText(c, e.d + ' ' + e.b, 30, 270 + i * 16, 13, i ? '#aab' : '#fff'));
+    c.fillStyle = 'rgba(0,0,0,0.5)'; roundRect(c, 20, 341, 130, 16 + B.inputLog.length * 16, 8); c.fill();
+    B.inputLog.slice().reverse().forEach((e, i) => smallText(c, e.d + ' ' + e.b, 30, 355 + i * 16, 13, i ? '#aab' : '#fff'));
     if (B.frameInfo) { c.fillStyle = 'rgba(0,0,0,0.55)'; roundRect(c, W - 270, 130, 250, 60, 8); c.fill(); smallText(c, B.frameInfo.name, W - 258, 148, 13, '#ffd35a'); smallText(c, `Startup ${B.frameInfo.s}f · Active ${B.frameInfo.a}f · Recovery ${B.frameInfo.r}f`, W - 258, 166, 11, '#dde'); smallText(c, `Damage ${B.frameInfo.dmg} · Guard ${B.frameInfo.guard}`, W - 258, 182, 11, '#dde'); }
+    const D = B.dmgLog, dm = B.sides[1].point;
+    if (D) {
+      c.fillStyle = 'rgba(0,0,0,0.55)'; roundRect(c, W - 270, 198, 250, 98, 8); c.fill(); smallText(c, 'DAMAGE', W - 258, 214, 13, '#ff8a6a');
+      const pct = v => Math.round(v / dm.maxHp * 100) + '%';
+      [['Combo', D.cur ? `${Math.round(D.cur)} (${D.hits} hits · ${pct(D.cur)})` : '-'], ['Last combo', D.last ? `${Math.round(D.last)} (${D.lastHits} hits · ${pct(D.last)})` : '-'], ['Best combo', D.best ? `${Math.round(D.best)} · ${pct(D.best)}` : '-'], ['Total', Math.round(D.total)]]
+        .forEach(([a, b], i) => { smallText(c, a, W - 258, 232 + i * 16, 12, '#bcd'); smallText(c, String(b), W - 30, 232 + i * 16, 12, '#fff', 'right'); });
+    }
   },
   announce(c) {
     const a = Game.banner; if (!a) return;
