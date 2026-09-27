@@ -19,7 +19,7 @@
   canvas.addEventListener('pointerdown', e => {
     canvas.focus(); Sfx.init();
     const r = canvas.getBoundingClientRect();
-    Game.tapAt((e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height);
+    UI.tap((e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height);
   });
   focus();
 })();

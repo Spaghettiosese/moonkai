@@ -52,6 +52,11 @@ const Sfx = {
       this.master = this.ac.createGain();
       this.master.gain.value = 0.3;
       this.master.connect(this.ac.destination);
+      this.out = this.ac.createGain(); this.out.connect(this.master);
+      this.musicBus = this.ac.createGain(); this.musicBus.gain.value = 0.5; this.musicBus.connect(this.master);
+      const len = this.ac.sampleRate * 2; this.noiseBuf = this.ac.createBuffer(1, len, this.ac.sampleRate);
+      const nd = this.noiseBuf.getChannelData(0); for (let i = 0; i < len; i++) nd[i] = Math.random() * 2 - 1;
+      this.applyVolumes && this.applyVolumes();
     } catch (e) { this.ac = null; }
   },
   tone(freq, dur, type = 'square', vol = 0.3, slideTo = null, delay = 0) {
@@ -62,21 +67,17 @@ const Sfx = {
     if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
     g.gain.setValueAtTime(vol, t);
     g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    o.connect(g).connect(this.master);
+    o.connect(g).connect(this.out);
     o.start(t); o.stop(t + dur + 0.05);
   },
   noise(dur, vol = 0.3, freq = 1200, delay = 0) {
     if (!this.ac) return;
     const t = this.ac.currentTime + delay;
-    const len = Math.max(1, Math.floor(this.ac.sampleRate * dur));
-    const buf = this.ac.createBuffer(1, len, this.ac.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
-    const s = this.ac.createBufferSource(); s.buffer = buf;
+    const s = this.ac.createBufferSource(); s.buffer = this.noiseBuf;
     const f = this.ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = freq;
-    const g = this.ac.createGain(); g.gain.value = vol;
-    s.connect(f).connect(g).connect(this.master);
-    s.start(t);
+    const g = this.ac.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    s.connect(f).connect(g).connect(this.out);
+    s.start(t, Math.random() * 1.5, dur + 0.05);
   },
   hit() { this.noise(0.1, 0.4, 2500); this.tone(200, 0.1, 'square', 0.15, 70); },
   block() { this.tone(900, 0.06, 'triangle', 0.15, 600); },

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MOONKAI — Heroes &amp; Villains (Proof of Concept)</title>
+<title>MOONKAI — Heroes &amp; Villains</title>
 <style>
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
   body { display: flex; align-items: center; justify-content: center; }
@@ -16,8 +16,9 @@
   #touch .left [data-key="KeyW"] { grid-column: 2; grid-row: 1; }
   #touch .left [data-key="KeyA"] { grid-column: 1; grid-row: 2; }
   #touch .left [data-key="KeyD"] { grid-column: 3; grid-row: 2; }
-  #touch .left [data-key="KeyS"] { grid-column: 2; grid-row: 2; }
+  #touch .left [data-key="KeyS"] { grid-column: 2; grid-row: 3; }
   #touch .right { grid-template-columns: repeat(3, 58px); }
+  #touch button.big { height: 60px; }
   #touch button { width: 100%; height: 56px; border-radius: 50%; border: 2px solid rgba(255, 211, 90, 0.55);
     background: rgba(20, 14, 40, 0.55); color: #ffe9a8; font: 700 18px/1 Impact, "Arial Black", sans-serif;
     touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -36,30 +37,49 @@
     <button data-key="KeyA" aria-label="Move left">◀</button>
     <button data-key="KeyW" aria-label="Jump">▲</button>
     <button data-key="KeyD" aria-label="Move right">▶</button>
-    <button data-key="KeyS" aria-label="Block" class="small">BLOCK</button>
+    <button data-key="KeyS" aria-label="Crouch">▼</button>
   </div>
   <div class="cluster right">
-    <button data-key="KeyU" class="small form" aria-label="Transform">FORM</button>
-    <button data-key="KeyI" class="small ult" aria-label="Ultimate">ULT</button>
-    <button data-key="KeyO" class="small" aria-label="Dash">DASH</button>
-    <button data-key="KeyK" aria-label="Skill 1">K</button>
-    <button data-key="KeyL" aria-label="Skill 2">L</button>
-    <button data-key="KeyJ" class="big" aria-label="Attack">HIT</button>
+    <button data-key="Escape" class="small" aria-label="Pause">II</button>
+    <button data-key="KeyU" class="small form" aria-label="Awaken">FORM</button>
+    <button data-key="KeyB" class="small form" aria-label="Sparking blast">SPARK</button>
+    <button data-key="KeyP" class="small ult" aria-label="Ultimate">ULT</button>
+    <button data-key="Space" class="small" aria-label="Super dash">S.DASH</button>
+    <button data-key="KeyH" class="small" aria-label="Vanish">VANISH</button>
+    <button data-key="KeyI" class="small" aria-label="Special">SP</button>
+    <button data-key="KeyO" class="small ult" aria-label="Super">SUPER</button>
+    <button data-key="KeyQ" class="small" aria-label="Assist 1">A1</button>
+    <button data-key="KeyJ" class="big" aria-label="Light">L</button>
+    <button data-key="KeyK" class="big" aria-label="Medium">M</button>
+    <button data-key="KeyL" class="big" aria-label="Heavy">H</button>
   </div>
 </div>
 
 <script src="js/core.js"></script>
+<script src="js/system.js"></script>
 <script src="js/models.js"></script>
 <script src="js/characters.js"></script>
 <script src="js/world.js"></script>
 <script src="js/stages.js"></script>
-<script src="js/abilities.js"></script>
+<script src="js/moves.js"></script>
+<script src="js/fighter.js"></script>
+<script src="js/combat.js"></script>
+<script src="js/battle.js"></script>
+<script src="js/ai.js"></script>
 <script src="js/cutscenes.js"></script>
 <script src="js/cutscenes2.js"></script>
-<script src="js/roster.js"></script>
-<script src="js/fighter.js"></script>
-<script src="js/ai.js"></script>
+<script src="js/cutscenes3.js"></script>
+<script src="js/roster_core.js"></script>
+<script src="js/roster1.js"></script>
+<script src="js/roster2.js"></script>
+<script src="js/roster3.js"></script>
+<script src="js/roster4.js"></script>
+<script src="js/balance.js"></script>
+<script src="js/story.js"></script>
+<script src="js/hud.js"></script>
 <script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/modes.js"></script>
 <script src="js/touch.js"></script>
 </body>
 </html>
