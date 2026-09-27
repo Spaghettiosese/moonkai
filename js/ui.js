@@ -108,7 +108,7 @@ class TitleScreen {
     this.parade.forEach((d, i) => { const x = ((i * 90 + Game.t * 50) % (60 * 90)) - 100; if (x > -100 && x < W + 100) drawCharAt(c, d, x, H - 6, 0.62 * (d.scale || 1), 1, { pose: 'run', anim: Game.t + i }); });
     logo(c, W / 2, 120);
     if (Math.sin(Game.t * 4) > -0.3) bigText(c, 'PRESS ANY KEY', W / 2, H - 150, 38, '#fff', '#000');
-    smallText(c, '69 fighters · 12 stages · Story · Arcade · 3v3 Teams · Training · Challenges', W / 2, H - 112, 15, '#ddd', 'center');
+    smallText(c, '70 fighters · 12 stages · Story · Arcade · 3v3 Teams · Training · Challenges', W / 2, H - 112, 15, '#ddd', 'center');
     if (Pads.connected[0]) smallText(c, '🎮 Gamepad connected', W / 2, H - 90, 13, '#9cf', 'center');
   }
 }
@@ -130,7 +130,7 @@ function mainMenu() {
     { label: 'TRAINING', desc: 'Practice with a dummy. Frame data, damage log, instant awaken, HP presets, hitboxes, infinite meter.', act: () => Modes.training() },
     { label: 'CHALLENGES', desc: 'Tutorial lessons and per-character combo trials.', act: () => UI.push(new MenuScreen('CHALLENGES', [
       { label: 'TUTORIAL', desc: '14 lessons covering every system in the game.', act: () => Modes.tutorial() },
-      { label: 'COMBO TRIALS', desc: 'Seven trials for each of the 69 fighters.', act: () => Modes.trials() },
+      { label: 'COMBO TRIALS', desc: 'Seven trials for each of the 70 fighters.', act: () => Modes.trials() },
     ])) },
     { label: 'EXTRAS', desc: 'Survival, Time Attack, Boss Rush.', act: () => UI.push(new MenuScreen('EXTRAS', [
       { label: 'SURVIVAL', desc: 'Endless fights. Your health carries over.', act: () => Modes.survival() },

@@ -92,9 +92,10 @@ class Battle {
     let ctl;
     if (f.ctrl === 'human1' || f.ctrl === 'human2') {
       ctl = readPlayer(f.ctrl === 'human1' ? 0 : 1, s.inputState);
-      if (f.status.confuse) ctl.x = -ctl.x;
     } else if (this.training && s.idx === 1) ctl = this.dummyControl(f);
     else ctl = cpuControl(f, this);
+    // inverted world (confuse): left is right, right is left — for CPUs too
+    if (f.status.confuse) { ctl.x = -ctl.x; const l = ctl.press.DTL; ctl.press.DTL = ctl.press.DTR; ctl.press.DTR = l; }
     if (ctl.press.DTL) ctl.press[f.facing < 0 ? 'FWD2' : 'BACK2'] = true;
     if (ctl.press.DTR) ctl.press[f.facing > 0 ? 'FWD2' : 'BACK2'] = true;
     // assists & tags (team mode)
