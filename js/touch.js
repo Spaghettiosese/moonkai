@@ -19,7 +19,12 @@
   canvas.addEventListener('pointerdown', e => {
     canvas.focus(); Sfx.init();
     const r = canvas.getBoundingClientRect();
-    UI.tap((e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height);
+    UI.tap((e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height, e.pointerType === 'mouse');
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (e.pointerType !== 'mouse') return;
+    const r = canvas.getBoundingClientRect();
+    UI.hover((e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height);
   });
   focus();
 })();

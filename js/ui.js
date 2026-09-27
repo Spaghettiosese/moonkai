@@ -14,7 +14,8 @@ const UI = {
   replace(s) { const o = this.stack.pop(); o && o.exit && o.exit(); this.push(s); },
   reset(s) { this.stack = []; this.push(s); },
   top() { return this.stack[this.stack.length - 1]; },
-  tap(x, y) { const t = this.top(); if (Game.cutscene) { Input.pressed.add('Enter'); return; } if (t && t.tap) t.tap(x, y); else Input.pressed.add('Enter'); },
+  tap(x, y, mouse) { const t = this.top(); if (Game.cutscene) { Input.pressed.add('Enter'); return; } if (t && t.tap) t.tap(x, y, mouse); else Input.pressed.add('Enter'); },
+  hover(x, y) { const t = this.top(); if (!Game.cutscene && t && t.hover) t.hover(x, y); },
 };
 
 // ---------- shared visuals ----------
@@ -60,7 +61,8 @@ class MenuScreen {
     else if (nav('back')) { Sfx.select(); if (this.opts.onBack) this.opts.onBack(); else UI.pop(); }
   }
   rect(i) { const y0 = this.opts.y0 || 150, h = this.items.length > 9 ? 44 : 52; return { x: 70, y: y0 + i * (h + 6), w: 470, h }; }
-  tap(x, y) { this.items.forEach((it, i) => { const r = this.rect(i); if (x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) { if (this.i === i && it.act) { Sfx.confirm(); it.act(); } else this.i = i; } }); }
+  hover(x, y) { this.items.forEach((it, i) => { const r = this.rect(i); if (x > r.x - 16 && x < r.x + r.w && y > r.y && y < r.y + r.h) this.i = i; }); }
+  tap(x, y, mouse) { this.items.forEach((it, i) => { const r = this.rect(i); if (x > r.x - 16 && x < r.x + r.w && y > r.y && y < r.y + r.h) { if ((mouse || this.i === i) && it.act) { this.i = i; Sfx.confirm(); it.act(); } else this.i = i; } }); }
   draw(c) {
     drawBackdrop(c, STAGES[Math.floor(Game.t / 12) % STAGES.length], Game.t, 0.55);
     // showcase fighter
@@ -106,7 +108,7 @@ class TitleScreen {
     this.parade.forEach((d, i) => { const x = ((i * 90 + Game.t * 50) % (60 * 90)) - 100; if (x > -100 && x < W + 100) drawCharAt(c, d, x, H - 6, 0.62 * (d.scale || 1), 1, { pose: 'run', anim: Game.t + i }); });
     logo(c, W / 2, 120);
     if (Math.sin(Game.t * 4) > -0.3) bigText(c, 'PRESS ANY KEY', W / 2, H - 150, 38, '#fff', '#000');
-    smallText(c, '64 fighters · 12 stages · Story · Arcade · 3v3 Teams · Training · Challenges', W / 2, H - 112, 15, '#ddd', 'center');
+    smallText(c, '65 fighters · 12 stages · Story · Arcade · 3v3 Teams · Training · Challenges', W / 2, H - 112, 15, '#ddd', 'center');
     if (Pads.connected[0]) smallText(c, '🎮 Gamepad connected', W / 2, H - 90, 13, '#9cf', 'center');
   }
 }
@@ -128,7 +130,7 @@ function mainMenu() {
     { label: 'TRAINING', desc: 'Practice with a dummy. Frame data, input display, hitboxes, infinite meter.', act: () => Modes.training() },
     { label: 'CHALLENGES', desc: 'Tutorial lessons and per-character combo trials.', act: () => UI.push(new MenuScreen('CHALLENGES', [
       { label: 'TUTORIAL', desc: '14 lessons covering every system in the game.', act: () => Modes.tutorial() },
-      { label: 'COMBO TRIALS', desc: 'Seven trials for each of the 64 fighters.', act: () => Modes.trials() },
+      { label: 'COMBO TRIALS', desc: 'Seven trials for each of the 65 fighters.', act: () => Modes.trials() },
     ])) },
     { label: 'EXTRAS', desc: 'Survival, Time Attack, Boss Rush.', act: () => UI.push(new MenuScreen('EXTRAS', [
       { label: 'SURVIVAL', desc: 'Endless fights. Your health carries over.', act: () => Modes.survival() },
@@ -205,10 +207,16 @@ class SelectScreen {
       if (m[7].length && tapped(...m[7])) { this.cur[k].idx = ROSTER.length; this.confirm(k); }
     });
   }
-  tap(x, y) {
-    for (let i = 0; i < this.tiles(); i++) { const r = this.tileRect(i); if (x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) { if (this.cur[0].idx === i) this.confirm(0); else { this.cur[0].idx = i; Sfx.select(); } return; } }
-    if (y > H - 40 && x < 200) this.back(0);
+  // mouse/touch: clicks drive whichever side is still picking (P1 first, then P2)
+  activeCursor() { const k = this.cur.findIndex(c => !c.done); return k < 0 ? this.cur.length - 1 : k; }
+  tileAt(x, y) { for (let i = 0; i < this.tiles(); i++) { const r = this.tileRect(i); if (x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) return i; } return -1; }
+  hover(x, y) { const i = this.tileAt(x, y), k = this.activeCursor(); if (i >= 0 && this.cur[k] && !this.cur[k].done && this.cur[k].idx !== i) this.cur[k].idx = i; }
+  tap(x, y, mouse) {
+    const k = this.activeCursor(), i = this.tileAt(x, y);
+    if (i >= 0) { if (mouse || this.cur[k].idx === i) { this.cur[k].idx = i; this.confirm(k); } else { this.cur[k].idx = i; Sfx.select(); } return; }
+    if (y > H - 40 && x < 200) this.back(k);
   }
+
   draw(c) {
     const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0b0a1e'); g.addColorStop(1, '#2a1640'); c.fillStyle = g; c.fillRect(0, 0, W, H);
     c.strokeStyle = 'rgba(255,255,255,0.04)'; for (let i = 0; i < 30; i++) { c.beginPath(); c.moveTo(i * 60 - (Game.t * 20) % 60, 0); c.lineTo(i * 60 - 300 - (Game.t * 20) % 60, H); c.stroke(); }
@@ -246,6 +254,8 @@ class SelectScreen {
       if (!two) wrapText(c, d.bio, tx + 520, py + 30, pw - 720, 17, 12.5, '#bbc');
       smallText(c, 'Color ' + (cu.alt + 1) + '/4', px + pw - 12, py + ph - 12, 11, '#99a', 'right');
     });
+    if (this.cur.length === 2) { const k = this.activeCursor(); if (!this.cur[k].done) bigText(c, 'NOW PICKING: P' + (k + 1) + (this.cfg.players === 0 ? ' (CPU)' : ''), W - 20, 40, 18, k ? '#5ad8ff' : '#ffd35a', '#000', 'right'); }
+    bigText(c, '◀ BACK', 70, H - 20, 16, '#ffd35a', '#000');
     smallText(c, this.cur.length === 2 ? 'P1: WASD · J pick · K undo · L color   |   P2: arrows · Numpad1/, pick · Numpad2/. undo · Numpad3// color' : 'Arrows/WASD move · J/ENTER pick · K/ESC undo · L change color · R random', W / 2, H - 2, 11, '#99a', 'center');
   }
 }
@@ -272,7 +282,8 @@ class StageSelectScreen {
     if (nav('ok')) { Sfx.confirm(); this.onDone(this.i >= STAGES.length ? pick(STAGES) : STAGES[this.i]); }
     else if (nav('back')) UI.pop();
   }
-  tap(x, y) { for (let i = 0; i <= STAGES.length; i++) { const r = this.rect(i); if (x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) { if (this.i === i) Input.pressed.add('Enter'); else this.i = i; } } }
+  hover(x, y) { for (let i = 0; i <= STAGES.length; i++) { const r = this.rect(i); if (x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) this.i = i; } }
+  tap(x, y, mouse) { for (let i = 0; i <= STAGES.length; i++) { const r = this.rect(i); if (x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) { if (mouse || this.i === i) { this.i = i; Input.pressed.add('Enter'); } else this.i = i; } } }
   draw(c) {
     c.fillStyle = '#08070f'; c.fillRect(0, 0, W, H);
     bigText(c, 'CHOOSE A STAGE', W / 2, 44, 40, '#fff', '#000');

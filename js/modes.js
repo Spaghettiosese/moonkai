@@ -145,7 +145,8 @@ class PauseScreen {
     else if (tapped('Escape', 'Pad0Start', 'Pad1Start', 'Backspace', 'Pad0B')) UI.pop();
   }
   rect(i) { return { x: W / 2 - 200, y: 150 + i * 42, w: 400, h: 36 }; }
-  tap(x, y) { this.items.forEach((it, i) => { const r = this.rect(i); if (x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) { if (this.i === i) { Sfx.confirm(); it.act(); } else this.i = i; } }); }
+  hover(x, y) { this.items.forEach((it, i) => { const r = this.rect(i); if (x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) this.i = i; }); }
+  tap(x, y, mouse) { this.items.forEach((it, i) => { const r = this.rect(i); if (x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) { if (mouse || this.i === i) { this.i = i; Sfx.confirm(); it.act(); } else this.i = i; } }); }
   draw(c) {
     this.bs.B.draw(c);
     c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(0, 0, W, H);
@@ -251,7 +252,8 @@ class ResultsScreen {
     if (nav('ok')) { Sfx.confirm(); this.items[this.i].act(); }
   }
   rect(i) { const w = 260; return { x: W / 2 - (this.items.length * (w + 16)) / 2 + i * (w + 16), y: H - 80, w, h: 50 }; }
-  tap(x, y) { this.items.forEach((it, i) => { const r = this.rect(i); if (x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) { if (this.i === i) this.items[i].act(); else this.i = i; } }); }
+  hover(x, y) { this.items.forEach((it, i) => { const r = this.rect(i); if (x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) this.i = i; }); }
+  tap(x, y, mouse) { if (this.t < 0.6) return; this.items.forEach((it, i) => { const r = this.rect(i); if (x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) { if (mouse || this.i === i) { this.i = i; this.items[i].act(); } else this.i = i; } }); }
   draw(c) {
     const B = this.B, w = this.winner;
     drawBackdrop(c, Arena.stage, Game.t, 0.45);

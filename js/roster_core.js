@@ -23,6 +23,13 @@ function fighter(spec) {
     if (d.form.super) d.form.super.id = d.id + '_fsuper';
   }
   if (!d.draw) d.draw = makeModelDraw(d.model, d.form && d.form.model);
+  // hit/hurt boxes follow the drawn body and weapon
+  const BODY = { giant: [1.18, 1.45], heavy: [1.06, 1.25], athletic: [1.04, 1.08] };
+  const bb = d.model && d.model.build;
+  if (bb && BODY[bb]) { if (d.tall === undefined) d.tall = BODY[bb][0]; if (d.wide === undefined) d.wide = BODY[bb][1]; }
+  const WT = { blade: 42, dual: 42, katana: 54, greatsword: 70, spear: 64, trident: 64, staff: 48, scythe: 78, hammer: 50, axe: 50 };
+  const wp = d.model && d.model.weapon; if (wp && WT[wp.type] !== undefined && !d.weaponTip) d.weaponTip = 22 + (wp.len || WT[wp.type]);
+  const fw = d.form && d.form.model && d.form.model.weapon; if (fw && WT[fw.type] !== undefined) d.form.weaponTip = 22 + (fw.len || WT[fw.type]);
   d.fx = U.fx;
   // select-screen stats derived from the kit
   d.stats = spec.stats || { POWER: 3, SPEED: 3, RANGE: 3, DEFENSE: 3, DIFFICULTY: 3 };

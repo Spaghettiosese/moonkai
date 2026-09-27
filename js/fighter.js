@@ -17,7 +17,7 @@ class Fighter {
     Object.assign(this, {
       x, y: 0, vx: 0, vy: 0, facing, state: 'stand', st: 0, move: null, mf: 0, anim: rand(0, 5),
       hitstun: 0, blockstun: 0, launched: false, kdHard: false, wbPending: false, gbPending: false, wbUsed: 0, gbUsed: 0,
-      downT: 0, invul: 0, pinvul: 0, flash: 0, comboHits: 0, comboDmg: 0, jumps: 0, airDash: 0, usedAir: new Set(),
+      downT: 0, otgUsed: false, invul: 0, pinvul: 0, flash: 0, comboHits: 0, comboDmg: 0, jumps: 0, airDash: 0, usedAir: new Set(),
       status: {}, marks: {}, buf: [], connected: null, hitMap: new Map(), guard: 0, guardT: 0, form: this.form && this.def.form && !this.def.form.timed && this.keepForm ? this.form : false,
       formT: 0, spark: 0, sayText: null, sayT: 0, tauntT: 0, lastMove: null, lastCtl: {}, grabbedBy: null, grabT: 0, dashT: 0, sdash: null, charge: false,
       history: [], pose: 'idle', ai: {}, onGround: true, revived: this.revived && this.keepForm ? this.revived : false, counterHit: false, whiffRec: 0, clones: 0,
@@ -31,7 +31,7 @@ class Fighter {
   get opp() { return this.side.enemy.point; }
   get scale() { return (this.def.scale || 1) * (this.form && this.def.form.scale ? this.def.form.scale : 1); }
   get w() { return 46 * this.scale * (this.def.wide || 1); }
-  get h() { return (this.state === 'crouch' || (this.move && this.move.crouch) || this.state === 'cblock' ? 72 : 110) * this.scale; }
+  get h() { return (this.state === 'crouch' || (this.move && this.move.crouch) || this.state === 'cblock' ? 72 : 110) * this.scale * (this.def.tall || 1); }
   get airborne() { return this.y < -0.5; }
   get lying() { return this.state === 'down' || this.state === 'ko'; }
   rect() { return { x: this.x - this.w / 2, y: this.y - this.h, w: this.w, h: this.h }; }
@@ -111,7 +111,7 @@ class Fighter {
       case 'grabbed': this.pose = 'hurt_air'; if (ctl.press.H && this.grabT > 0 && this.grabT < 9) Combat.throwTech(this); this.grabT++; return;
       case 'hit': this.stepHit(ctl); break;
       case 'block': case 'cblock': if (--this.blockstun <= 0) { this.blockstun = 0; this.state = this.airborne ? 'air' : 'stand'; } if (ctl.press.S) this.reflect(); this.physics(); break;
-      case 'down': this.vx *= 0.85; if (--this.downT <= 0) { this.state = 'stand'; this.invul = 14; } this.physics(); break;
+      case 'down': this.vx *= 0.85; if (--this.downT <= 0) { this.state = 'stand'; this.invul = 14; this.otgUsed = false; } this.physics(); break;
       case 'roll': this.vx = this.rollDir * 520; if (--this.downT <= 0) { this.state = 'stand'; this.vx = 0; } this.physics(); break;
       case 'move': this.stepMove(ctl); break;
       case 'dash': this.stepDash(ctl); break;

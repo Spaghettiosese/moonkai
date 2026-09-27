@@ -7,15 +7,23 @@ const Combat = {
   addHazard(h) { h.t = h.t || 0; h.hits = h.hits || new Map(); this.hazards.push(h); return h; },
 
   hitRect(f, h) {
-    const sc = f.scale, [bx, by, bw, bh] = h.box;
+    // boxes scale with the drawn body: fighter scale x build height; bulky builds strike from a wider body edge
+    const sc = f.scale * (f.def.tall || 1), push = Math.max(0, (f.w - 46 * f.scale) / 2), [bx, by, bw, bh] = h.box;
     if (h.centered) return { x: f.x + bx * sc, y: f.y + by * sc, w: bw * sc, h: bh * sc };
-    return { x: f.facing > 0 ? f.x + bx * sc : f.x - (bx + bw) * sc, y: f.y + by * sc, w: bw * sc, h: bh * sc };
+    return { x: f.facing > 0 ? f.x + bx * sc + push : f.x - (bx + bw) * sc - push, y: f.y + by * sc, w: bw * sc, h: bh * sc };
   },
   targets(side) { return Game.battle ? Game.battle.enemiesOf(side) : []; },
 
   // ---------- melee ----------
   meleeFrame(f, m) {
     const h = m.hit, box = this.hitRect(f, h);
+    // weapon users: the blade's edge is part of the hitbox (light attacks reach 85% of the tip)
+    const tip = (f.form && f.def.form && f.def.form.weaponTip) || f.def.weaponTip;
+    if (tip && !h.centered && !m.grab && !m.noExtend && h.guard !== 'throw' && m.kind !== 'throw') {
+      const want = tip * (m.level === 0 ? 0.85 : 1) * f.scale * (f.def.tall || 1);
+      if (f.facing > 0) { const edge = f.x + want; if (box.x + box.w < edge) box.w = edge - box.x; }
+      else { const edge = f.x - want; if (box.x > edge) { box.w += box.x - edge; box.x = edge; } }
+    }
     if (Save.set.hitboxes) Game.debugBoxes.push({ r: box, col: 'rgba(255,40,40,0.45)' });
     for (const t of this.targets(f.side)) {
       const rec = f.hitMap.get(t) || { n: 0, last: -99 };
@@ -49,7 +57,8 @@ const Combat = {
     if (!opts.force) {
       if (t.invul > 0) return null;
       if ((opts.proj || opts.beam) && t.pinvul > 0) return null;
-      if (t.lying && !h.otg) return null;
+      // one OTG hit per knockdown, early in the knockdown (not right before wake-up)
+      if (t.lying && !h.otg && (t.state === 'ko' || t.otgUsed || t.downT < 12)) return null;
       if (t.state === 'grabbed') return null;
     }
     if (t.countering && t.move && t.move.counter && a instanceof Fighter && !opts.force && h.guard !== 'throw' && !(opts.move && opts.move.grab)) { this.counterTrigger(t, a); return 'countered'; }
@@ -95,7 +104,9 @@ const Combat = {
     const counter = t.state === 'move' && t.move && t.mf < t.move.s + t.move.a && t.move.kind !== 'throw';
     const isSuper = opts.move && (opts.move.kind === 'super' || opts.move.kind === 'ult');
     const minScale = isSuper ? 0.5 : 0.3;
+    const otg = t.state === 'down';
     let dmg = h.dmg * (a.world ? 1 : a.dmgMult(t)) * t.armorMult(a);
+    if (otg) dmg *= 0.6;
     if (!h.noScale && !opts.noScale) dmg *= Math.max(minScale, 1 - 0.07 * Math.max(0, t.comboHits - 1));
     if (counter) { dmg *= 1.15; Game.popWorld(t.x, t.y - t.h - 50, 'COUNTER!', '#ff4a4a', 26); Save.bump('counters'); }
     if (t.status.shield > 0) { const ab = Math.min(t.status.shield, dmg); t.status.shield -= ab; dmg -= ab; Game.fx.burst(t.x, t.y - 60, 10, { color: '#3fe0ff', size: 6, speed: 200, glow: true, life: 0.3 }); if (dmg <= 0) { Sfx.block(); return 'block'; } }
@@ -128,7 +139,7 @@ const Combat = {
       const decay = Math.max(0.4, 1 - t.comboHits * 0.03);
       t.hitstun = Math.round((h.hs || 18) * decay * (counter ? 1.4 : 1));
       t.vx = dir * h.kb[0] * weight;
-      const launch = h.launch || t.airborne || h.kb[1] < 0;
+      const launch = h.launch || t.airborne || h.kb[1] < -300;
       if (launch) {
         t.vy = h.kb[1] !== 0 ? h.kb[1] * (h.kb[1] < 0 ? weight : 1) : -220;
         if (!t.airborne && t.vy < 0) t.y = -1;
@@ -139,6 +150,14 @@ const Combat = {
       if (h.wb && t.wbUsed < 1) { t.wbPending = true; t.kdPending = true; }
       if (h.gb && t.gbUsed < 1) { t.gbPending = true; t.kdPending = true; }
       t.comboHits++; t.comboDmg += dmg;
+      // multi-hit attacks (barrages, rising multi hits) hold the victim in place so every hit lands
+      const mh = opts.move && opts.move.hit && (opts.move.hit.multi || 1) > 1 && h === opts.move.hit && !a.world;
+      if (mh) {
+        t.vx = (a.vx || 0) * 0.9;
+        if (t.airborne || a.airborne) { t.vy = a.airborne && a.vy < 0 ? a.vy : Math.min(t.vy, -160); if (!t.airborne) t.y = -1; t.launched = true; }
+        t.hitstun = Math.max(t.hitstun, (h.every || 3) * 2 + 14);
+      }
+      if (otg) { t.vy = -520; t.y = -1; t.launched = true; t.kdPending = true; t.otgUsed = true; t.vx = dir * 120; Game.popWorld(t.x, t.y - 90, 'OTG', '#ffb05a', 16); }
       // flip: thrown over the attacker to the other side
       if (h.flip && !a.world) { t.x = clamp(a.x - a.facing * (a.w / 2 + t.w / 2 + 24), 40, Arena.stage.width - 40); t.vx = -a.facing * Math.abs(h.kb[0]) * 0.4; t.facing = a.facing; }
     }
