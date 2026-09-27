@@ -20,7 +20,7 @@ function readPlayer(slot, st) {
   st.tap = st.tap || { l: -99, r: -99 }; const fr = Game.battle ? Game.battle.frame : 0;
   if (P(K.left)) { if (fr - st.tap.l < 12) press.DTL = true; st.tap.l = fr; }
   if (P(K.right)) { if (fr - st.tap.r < 12) press.DTR = true; st.tap.r = fr; }
-  return { x, y, press, hold: { UP: H(K.up), C: H(K.C), A1: H(K.A1), A2: H(K.A2), L: H(K.L) } };
+  return { x, y, press, hold: { UP: H(K.up), C: H(K.C), A1: H(K.A1), A2: H(K.A2), L: H(K.L), S: H(K.S) } };
 }
 const EMPTY_CTL = () => ({ x: 0, y: 0, press: {}, hold: {} });
 
