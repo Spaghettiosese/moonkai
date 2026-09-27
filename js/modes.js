@@ -133,7 +133,7 @@ class PauseScreen {
     if (bs.opts.mkCfg && !B.training) it.push({ label: 'RESTART MATCH', act: () => { UI.pop(); bs.restart(); } });
     it.push({ label: 'CONTROLS', act: () => UI.push(new HowToScreen()) });
     it.push({ label: 'SETTINGS', act: () => UI.push(settingsMenu()) });
-    it.push({ label: 'QUIT', act: () => { Game.laters = []; Game.banner = null; Game.battle = null; UI.pop(); UI.pop(); if (bs.opts.onQuit) bs.opts.onQuit(); } });
+    it.push({ label: 'QUIT', act: () => { Game.laters = []; Game.banner = null; Game.battle = null; Game.fx.clear(); Combat.clear(); UI.pop(); UI.pop(); if (bs.opts.onQuit) bs.opts.onQuit(); } });
     this.items = it;
   }
   enter() { Sfx.tone(440, 0.1, 'sine', 0.08, 330); }
@@ -410,7 +410,7 @@ const Modes = {
     const sel = new SelectScreen({ title: players === 0 ? 'CPU VS CPU — PICK BOTH SIDES' : teamSize > 1 ? 'TEAM BATTLE' : 'VERSUS', teamSize, players: players === 2 || players === 0 ? 2 : 1, onDone: teams => {
       UI.push(new StageSelectScreen(stage => {
         const mk = () => battleCfg([teams[0].map(p => member(p.def, ctrlA, { alt: p.alt, level: cpuLevel() })), teams[1].map(p => member(p.def, ctrlB, { alt: p.alt }))], stage);
-        const opts = { mkCfg: mk, vsSplash: true, onEnd: (r, B) => UI.replace(new ResultsScreen(B, r, { items: [
+        const opts = { mkCfg: mk, vsSplash: true, onQuit: () => UI.pop(), onEnd: (r, B) => UI.replace(new ResultsScreen(B, r, { items: [
           { label: 'REMATCH', act: () => UI.replace(new BattleScreen(mk(), Object.assign({}, opts, { vsSplash: false }))) },
           { label: 'CHARACTER SELECT', act: () => { UI.pop(); UI.pop(); } },
           { label: 'MAIN MENU', act: () => { UI.pop(); UI.pop(); UI.pop(); } },

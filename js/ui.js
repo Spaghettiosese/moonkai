@@ -172,6 +172,8 @@ class SelectScreen {
     this.cur = Array.from({ length: n }, (_, i) => ({ idx: i ? 11 : 0, picks: [], alt: 0, done: false }));
   }
   enter() { Music.play('select'); }
+  // coming back from stage select / a match: unlock the cursors so you can pick again
+  resume() { this.enter(); this.cur.forEach(c => { c.picks = []; c.done = false; }); }
   tiles() { return ROSTER.length + 1; }
   tileRect(i) { const w = this.cols * (this.tile + this.gap); const x0 = (W - w) / 2; return { x: x0 + (i % this.cols) * (this.tile + this.gap), y: 96 + Math.floor(i / this.cols) * (this.tile + this.gap), w: this.tile, h: this.tile }; }
   defAt(i) { return i >= ROSTER.length ? null : ROSTER[i]; }

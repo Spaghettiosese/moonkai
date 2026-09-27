@@ -269,6 +269,7 @@ class Battle {
   // ---------- main frame ----------
   step() {
     this.frame++; this.stateT++;
+    Game.fx.update(1 / FPS);
     for (const l of Game.laters.slice()) { if (--l.f <= 0) { Game.laters.splice(Game.laters.indexOf(l), 1); l.fn(); } }
     if (this.pendingRevive) { const t = this.pendingRevive; this.pendingRevive = null; Ach.unlock('revive'); Game.playCutscene(Cutscenes.transform(t), () => { t.hp = Math.round((t.def.reviveHp || 300) * HP_MULT); t.red = t.hp; t.shownHp = t.hp; t.state = 'stand'; t.y = 0; t.invul = 90; t.enterForm(); t.side.meter = Math.max(t.side.meter, 300); }); return; }
     if (this.pendingUlt) { this.runPendingUlt(); return; }
