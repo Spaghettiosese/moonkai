@@ -17,7 +17,7 @@ A pixel art editor that runs in the browser and is tuned for anime-style art. To
 - **Character builder** (the **Character** button): a rigged, full-body anime character with generated animations.
   - Presets: Angel, Darkin, Schoolgirl, Ninja, Knight, Mage and Chibi hero.
   - Proportions from chibi (3 heads) to heroic (7.5), plus build and body shape.
-  - Six hairstyles, sleeves, pants/skirt/shorts, wings (angel or demon), halo/horns/cat ears, a cape, and a sword, spear or staff.
+  - Six hairstyles, sleeves, pants/skirt/shorts, wings (angel or demon), halo/horns/cat ears, a cape, and a sword, spear, staff or Darkin Blade. The Darkin Blade is Aatrox's living greatsword from the game, with its eye, and uses a wider canvas.
   - Eight colour pickers, and a Randomize button.
   - Animations: idle (with a blink), walk, run, jump, attack (with a slash trail), hover, or all of them as one sprite set.
   - Frames are drawn as outlined, cel-shaded pixel art on Background, Shadow and Character layers. You can also add frames to an existing canvas.

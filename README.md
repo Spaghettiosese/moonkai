@@ -82,4 +82,4 @@ js/touch.js       on-screen touch controls and tap navigation
 
 ## Pixel Studio
 
-The `pixel/` folder holds **Moonkai Pixel Studio**, a pixel art and animation editor for anime-style art. Open `pixel/index.html` to use it. See [pixel/README.md](pixel/README.md) for details.
+The `pixel/` folder holds **Moonkai Pixel Studio**, a pixel art and animation editor for anime-style art. Open `pixel/index.html` to use it. See [pixel/README.md](pixel/README.md) for details. In the game, Aatrox and his portrait are drawn in the Pixel Studio style (`js/aatrox_pixel.js`).

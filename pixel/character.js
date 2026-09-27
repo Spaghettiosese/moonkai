@@ -12,7 +12,7 @@
   const PRESETS = {
     'Angel': { heads: 6.5, build: 'slim', frame: 'feminine', hairStyle: 'long', sleeves: 'long', bottomStyle: 'skirt', wings: 'angel', headgear: 'halo', weapon: 'spear', cape: false,
       skin: '#f7dcc0', hair: '#fff0b0', eyes: '#6a5aa8', top: '#f4f0ff', bottom: '#fffbe8', boots: '#e6c060', accent: '#e6c060', outline: '#2a1f4a' },
-    'Darkin': { heads: 7.5, build: 'muscular', frame: 'masculine', hairStyle: 'spiky', sleeves: 'sleeveless', bottomStyle: 'pants', wings: 'demon', headgear: 'horns', weapon: 'sword', cape: false,
+    'Darkin': { heads: 7.5, build: 'muscular', frame: 'masculine', hairStyle: 'spiky', sleeves: 'sleeveless', bottomStyle: 'pants', wings: 'demon', headgear: 'horns', weapon: 'darkin', cape: false,
       skin: '#7a1a1e', hair: '#2a0d10', eyes: '#ff3a2a', top: '#2a0d10', bottom: '#2a0a0c', boots: '#1e0709', accent: '#6a1016', outline: '#0a0102' },
     'Schoolgirl': { heads: 6.5, build: 'slim', frame: 'feminine', hairStyle: 'twintails', sleeves: 'short', bottomStyle: 'skirt', wings: 'none', headgear: 'none', weapon: 'none', cape: false,
       skin: '#fde0cc', hair: '#ff85b8', eyes: '#4aa8f0', top: '#ffffff', bottom: '#3a4466', boots: '#5a3a2a', accent: '#e43b44', outline: '#2a1f2d' },
@@ -36,7 +36,7 @@
     ['bottomStyle', 'Bottoms', ['pants', 'skirt', 'shorts']],
     ['wings', 'Wings', ['none', 'angel', 'demon']],
     ['headgear', 'Headgear', ['none', 'halo', 'horns', 'catears']],
-    ['weapon', 'Weapon', ['none', 'sword', 'spear', 'staff']],
+    ['weapon', 'Weapon', ['none', 'sword', 'spear', 'staff', 'darkin']],
     ['cape', 'Cape', 'check'],
     ['skin', 'Skin', 'color'], ['hair', 'Hair colour', 'color'], ['eyes', 'Eyes', 'color'], ['top', 'Top', 'color'],
     ['bottom', 'Bottoms colour', 'color'], ['boots', 'Boots', 'color'], ['accent', 'Accent', 'color'], ['outline', 'Outline', 'color'],
@@ -65,11 +65,11 @@
 
   // ---------- rig ----------
   function proportions(o, W, Hc) {
-    const H = Hc * (o.wings !== 'none' || o.headgear === 'horns' ? .72 : .78), h = H / o.heads, bm = { slim: .85, normal: 1, muscular: 1.3 }[o.build], masc = o.frame === 'masculine';
+    const H = Hc * (o.weapon === 'darkin' ? .5 : o.wings !== 'none' || o.headgear === 'horns' ? .72 : .78), h = H / o.heads, bm = { slim: .85, normal: 1, muscular: 1.3 }[o.build], masc = o.frame === 'masculine';
     const leg = H * (o.heads <= 3.5 ? .3 : o.heads <= 5.5 ? .42 : .48), headNeck = h * 1.12, torso = H - leg - headNeck;
     return { H, h, leg, torso, thigh: leg * .5, shin: leg * .5, arm: torso * .95 + leg * .12, r: Math.max(1.1, H * .021 * bm),
       rx: h * .46, ry: h * .5, sw: H * (masc ? .105 : .09) * bm, ww: H * (masc ? .08 : .06) * bm, hw: H * (masc ? .08 : .095) * bm,
-      foot: Math.max(2, H * .05), cx: W * .5, floor: Hc * .95 };
+      foot: Math.max(2, H * .05), cx: W * (o.weapon === 'darkin' ? .42 : .5), floor: Hc * .95 };
   }
   function rig(P, pose) {
     const ext = L => Math.cos(L.th) * P.thigh + Math.cos(L.th - L.kn) * P.shin;
@@ -95,7 +95,7 @@
   const ell = (c, rx, ry, rot = 0) => { const p = new Path2D(); p.ellipse(c[0], c[1], Math.max(.5, rx), Math.max(.5, ry), rot, 0, TAU); return p; };
 
   function drawCharacter(o, anim, i) {
-    const Hc = +o.size, W = Hc, a = ANIMS[anim], pose = a.f(i / a.n, i, a.n);
+    const Hc = +o.size, W = o.weapon === 'darkin' ? Math.round(Hc * 1.5) : Hc, a = ANIMS[anim], pose = a.f(i / a.n, i, a.n);
     const P = proportions(o, W, Hc), R = rig(P, pose);
     const C = {}, used = new Set([o.outline, '#ffffff', o.eyes]);
     for (const k of ['skin', 'hair', 'top', 'bottom', 'boots', 'accent']) { C[k] = o[k]; C[k + 'S'] = shadeHex(o[k]); C[k + 'D'] = shadeHex(C[k + 'S'], -1, 10); }
@@ -207,6 +207,30 @@
     if (o.headgear === 'catears') paint([poly([[hd[0] - rx * .6, hd[1] - ry * .7], [hd[0] - rx * .55, hd[1] - ry * 1.45], [hd[0] - rx * .1, hd[1] - ry * .95]]),
       poly([[hd[0] + rx * .2, hd[1] - ry * .95], [hd[0] + rx * .55, hd[1] - ry * 1.5], [hd[0] + rx * .75, hd[1] - ry * .6]])], C.hair, C.hairS);
 
+    // The Darkin Blade, same geometry as Aatrox's blade in the game (units: 112 = body height).
+    function darkinBlade(at, ang, g, pose) {
+      const len = 124, bw = 14, m = new DOMMatrix().translate(at[0], at[1]).rotate(ang * 180 / Math.PI).scale(g, g);
+      const mv = p => { const q = new Path2D(); q.addPath(p, m); return q; };
+      const pc = (a, b, rr) => mv(cap(a, b, rr));
+      paint([pc([-24, 0], [6, 0], 2.8)], '#140405', '#0a0102');
+      const body = new Path2D(); body.moveTo(12, -bw * .7);
+      for (let k = 1; k <= 7; k++) body.lineTo(12 + (len - 12) * k / 8, -bw * .7 * (1 - k / 9) - (k % 2 ? 7 : 0));
+      body.lineTo(len, bw * .05); body.quadraticCurveTo(len * .62, bw * 1.05, 12, bw * .75); body.closePath();
+      paint([mv(body)], '#6e0f16', '#3a080c');
+      const guard = new Path2D(); guard.moveTo(4, -18); guard.quadraticCurveTo(14, -6, 8, 0); guard.quadraticCurveTo(14, 6, 4, 18); guard.lineTo(16, 10); guard.lineTo(18, 0); guard.lineTo(16, -10); guard.closePath();
+      paint([mv(guard)], '#1e0709', '#120304');
+      const ex = len * .3, ew = 11, eh = pose.blink ? 1 : 7;
+      paint([mv(ell([ex, 0], ew + 2.5, eh + 2.5))], '#150204', '#150204');
+      X.save(); X.transform(m.a, m.b, m.c, m.d, m.e, m.f);
+      X.strokeStyle = '#aa141e'; X.lineWidth = 2.6; X.lineCap = 'round'; X.beginPath(); X.moveTo(18, bw * .12); X.quadraticCurveTo(len * .55, bw * .3, len * .9, bw * .08); X.stroke();
+      if (!pose.blink) {
+        X.fillStyle = '#ffcf8a'; X.beginPath(); X.ellipse(ex, 0, ew, eh, 0, 0, TAU); X.fill();
+        X.fillStyle = '#d0101a'; X.beginPath(); X.ellipse(ex, 0, ew * .45, eh, 0, 0, TAU); X.fill();
+        X.fillStyle = '#000000'; X.beginPath(); X.ellipse(ex, 0, Math.max(1.5 / g, ew * .14), eh * .9, 0, 0, TAU); X.fill();
+      } else { X.strokeStyle = '#ff2a2a'; X.lineWidth = 2 / g; X.beginPath(); X.moveTo(ex - ew, 0); X.lineTo(ex + ew, 0); X.stroke(); }
+      X.restore();
+      for (const c of ['#aa141e', '#ffcf8a', '#d0101a', '#000000', '#ff2a2a']) used.add(c);
+    }
     // near arm, weapon, hand, swoosh
     const nA = R.arms[0];
     drawArm(nA, false, false);
@@ -226,9 +250,10 @@
       paint([cap([nA.hd[0], nA.hd[1] + P.H * .18], top, Math.max(.8, r * .5))], '#8a5a3a', '#5a3a2a');
       paint([ell(top, P.h * .18, P.h * .18)], C.accent, C.accentS);
     }
+    else if (o.weapon === 'darkin') darkinBlade(nA.hd, Math.atan2(wd[1], wd[0]), P.H / 112, pose);
     paint([ell(nA.hd, r * 1.15, r * 1.15)], C.skin, C.skinS);
     if (pose.swoosh && o.weapon !== 'none') {
-      const phi = a => Math.PI / 2 - a, rad = P.arm + (o.weapon === 'sword' ? P.H * .25 : P.H * .3);
+      const phi = a => Math.PI / 2 - a, rad = P.arm + (o.weapon === 'darkin' ? P.H * .9 : o.weapon === 'sword' ? P.H * .25 : P.H * .3);
       X.globalAlpha = .9; X.strokeStyle = '#ffffff'; X.lineWidth = Math.max(1.5, P.H * .03); X.lineCap = 'round';
       X.beginPath(); X.arc(nA.s[0], nA.s[1], rad, phi(pose.swoosh[0]), phi(pose.swoosh[1]), pose.swoosh[1] > pose.swoosh[0]); X.stroke();
       X.strokeStyle = C.accent; X.lineWidth = Math.max(1, P.H * .012); X.beginPath(); X.arc(nA.s[0], nA.s[1], rad - P.H * .03, phi(pose.swoosh[0]), phi(pose.swoosh[1]), pose.swoosh[1] > pose.swoosh[0]); X.stroke();
