@@ -343,26 +343,3 @@ fighter({
   lines: { intro: ['New challenger, {opp}!', "Let's speedrun this.", 'Press START to lose!'], win: ['GG EZ!', 'New high score!', 'Achievement unlocked: beat {opp}.'], taunt: ['Lag!', 'Noob!'], form: ['Boss mode unlocked!'], ult: ['GAME OVER!'], ultHit: ['Insert coin to continue.'] },
 });
 
-fighter({
-  id: 'striker', name: 'STRIKER', title: 'The Golden Boot', side: 'HERO', role: 'Zoner · Kicks', color: '#ffd35a', color2: '#1a5a2a',
-  bio: 'The greatest footballer who ever lived, until a meteor turned his boots gold. Now every kick lands with the force of a stadium.',
-  quote: 'Goal!', ending: 'Striker scores the winning goal of the World Cup from the Moon. FIFA rules it offside.',
-  hp: 1000, walk: 290, rival: 'roo',
-  model: { build: 'athletic', skin: '#a07050', top: '#1a8a3a', pants: '#fff', boots: '#ffd35a', hair: { type: 'short', color: '#1a1a1a' }, emblem: { shape: 'ball', color: '#fff' }, stripes: '#fff', kneepads: '#eee', weapon: { type: 'ball' } },
-  face: { expr: 'grin', eyes: '#5a3a1a', hair: { type: 'short', color: '#1a1a1a' } },
-  style: { reach: 1.1, poses: { '5L': 'kick', '5M': 'kick', '2M': 'sweep' } },
-  passive: ['Playmaker', 'Projectiles hit harder at long range.'],
-  moves: {
-    '5S': Mv.shot({ name: 'Power Shot', desc: 'A rocket of a kick.', pose: 'kick', proj: { speed: 950, r: 12, dmg: 70, kind: 'ball', color: '#fff', trail: false } }),
-    '6S': Mv.rush({ name: 'Slide Tackle', desc: 'Low sliding tackle.', pose: 'sweep', speed: 1100, frames: 16, hit: { dmg: 90, guard: 'low', kb: [300, -500], box: [0, -40, 70, 40] } }),
-    '2S': Mv.shot({ name: 'Lob', desc: 'High arcing ball.', pose: 'kick', proj: { speed: 700, angle: -0.8, g: 1200, r: 12, dmg: 60, kind: 'ball', color: '#fff', trail: false } }),
-    '4S': Mv.rising({ name: 'Bicycle Kick', desc: 'Overhead bicycle kick anti-air.', pose: 'air_mid', hit: { dmg: 44, multi: 3 } }),
-    'jS': Mv.shot({ name: 'Volley', desc: 'Kicks the ball down at an angle.', pose: 'air_mid', proj: { speed: 1000, r: 12, dmg: 65, angle: 0.5, kind: 'ball', color: '#fff', trail: false } }),
-  },
-  super: Sup.barrage({ name: 'Penalty Shootout', desc: 'Eight golden shots.', proj: { kind: 'ball', color: '#ffd35a', dmg: 30, r: 13 } }),
-  ult: { act: 'shot', name: 'GOLDEN GOAL', desc: 'The perfect shot. On hit: a stadium of pain.', dmg: 1100, template: 'barrage', proj: { kind: 'ball', color: '#ffd35a', r: 22 }, fx: { el: 'ball', color: '#ffd35a', sky: ['#0a1a0a', '#1a4a1a', '#4a8a3a'], lines: ['Stadium lights on.', 'GOOOOOOAL!'] } },
-  form: { name: 'HALL OF FAME', desc: 'Permanent. Golden boots: faster, stronger kicks.', dmg: 1.15, speed: 1.1, projSpeed: 1.2, model: { top: '#ffd35a', boots: '#fff6c0', aura: '#ffd35a', stripes: '#1a8a3a' } },
-  passiveDmg(f, t) { return t && Math.abs(t.x - f.x) > 400 ? 1.15 : 1; },
-  assist: '5S',
-  lines: { intro: ["Kick-off, {opp}!", "I've never missed a penalty.", 'Referee, start the clock.'], win: ['GOOOAL!', 'Top corner!', 'Man of the match!'], taunt: ['Offside!', 'Nutmeg!'], form: ['Hall of Fame!'], ult: ['Golden goal!'], ultHit: ['And the crowd goes wild!'] },
-});

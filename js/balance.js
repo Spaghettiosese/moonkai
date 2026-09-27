@@ -52,7 +52,6 @@ const BALANCE = {
   "rose": 1.149,
   "seraph": 0.603,
   "spectre": 1.302,
-  "striker": 0.706,
   "terra": 0.627,
   "titan": 0.74,
   "titania": 0.625,
