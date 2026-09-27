@@ -131,10 +131,11 @@ function Ult(o) {
   const hit = { dmg: 10, hs: 60, kb: [0, 0], ultConnect: true };
   switch (o.act) {
     case 'beam': m = Mv.beam({ s: 26, beam: Object.assign({ width: 90, dur: 50, dmg: 6, tick: 6, len: 2400, super: true, ultConnect: true, color: o.color }, o.beam) }); break;
-    case 'grab': m = Mv.grab({ s: 6, range: o.range || 70, grabData: { anim: 'ult', dmg: 0, frames: 10, ultConnect: true } }); break;
-    case 'shot': m = Mv.shot({ s: 24, proj: Object.assign({ speed: 1100, r: 26, dmg: 10, prio: 3, ultConnect: true, color: o.color, kind: o.kind || 'orb', life: 2.5, hs: 60, kb: [0, 0] }, o.proj) }); break;
+    // lunging command grab: can snatch a juggled / hitstunned target, so it works as a combo ender
+    case 'grab': m = Mv.grab({ s: 8, range: o.range || 90, grabData: { anim: 'ult', dmg: 0, frames: 10, ultConnect: true, combo: true, air: true } }); m.a = 16; m.pose = 'dash'; m.vel = [[8, 24, 1100, null]]; m.hit.box = [0, -200, o.range || 90, 200]; break;
+    case 'shot': m = Mv.shot({ s: 24, proj: Object.assign({ speed: 1100, r: 26, dmg: 10, prio: 3, ultConnect: true, color: o.color, kind: o.kind || 'orb', life: 2.5, hs: 60, kb: [0, 0] }, o.proj, { r: Math.max(34, (o.proj && o.proj.r) || 26) }) }); break;
     case 'strike': m = Mv.place({ s: 24, spawn: { kind: 'strike', at: 'enemy', delay: 0.35, dmg: 10, style: o.style || 'bolt', color: o.color, ultConnect: true } }); break;
-    case 'burst': m = mk({ pose: 'charge', s: 24, a: 8, r: 40, hit: Object.assign({ box: [-160, -220, 320, 240], centered: true }, hit) }); break;
+    case 'burst': m = mk({ pose: 'charge', s: 12, a: 10, r: 40, hit: Object.assign({ box: [-200, -520, 400, 540], centered: true }, hit) }); break;
     default: m = Mv.rush({ s: 20, speed: 1500, frames: 18, hit }); break;
   }
   if (m.hit) m.hit = Object.assign(m.hit, hit);

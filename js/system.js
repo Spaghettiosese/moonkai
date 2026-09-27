@@ -55,7 +55,7 @@ const ACHIEVEMENTS = [
   ['bars50', 'Big Spender', 'Spend 50 bars of Ki.'],
   ['destroy100', 'Urban Renewal', 'Destroy 100 structures.'],
   ['roster20', 'Well Rounded', 'Play 20 different fighters.'],
-  ['roster60', 'Completionist', 'Play all 60 fighters.'],
+  ['roster60', 'Completionist', 'Play all 61 fighters.'],
   ['stages', 'World Tour', 'Fight on all 12 stages.'],
   ['team', 'Squad Goals', 'Win a 3v3 team match.'],
   ['clutch', 'Clutch', 'Win a team match with your last fighter under 10% health.'],
@@ -85,7 +85,7 @@ const Ach = {
     if (r.bars >= 50) this.unlock('bars50');
     if (r.destroyed >= 100) this.unlock('destroy100');
     const played = Object.keys(r.played).length;
-    if (played >= 20) this.unlock('roster20'); if (played >= 60) this.unlock('roster60');
+    if (played >= 20) this.unlock('roster20'); if (played >= ROSTER.length) this.unlock('roster60');
     if (Object.keys(r.stages).length >= 12) this.unlock('stages');
     if ((r.counters || 0) >= 20) this.unlock('counter');
     if (Object.keys(r.trials).length >= 10) this.unlock('trials10');

@@ -62,7 +62,7 @@ class Battle {
     Combat.clear(); Game.fx.clear(); Game.texts = [];
     const W0 = Arena.stage.width;
     this.sides.forEach((s, i) => {
-      s.members.forEach(f => { f.hp = f.maxHp; f.red = f.maxHp; f.shownHp = f.maxHp; f.keepForm = false; f.revived = false; f.form = false; f.reset(W0 / 2 + (i ? 260 : -260), i ? -1 : 1); f.state = 'benched'; f.x = -999; });
+      s.members.forEach(f => { if (f.baseDef) f.def = f.baseDef; f.corrupted = false; f.hp = f.maxHp; f.red = f.maxHp; f.shownHp = f.maxHp; f.keepForm = false; f.revived = false; f.form = false; f.reset(W0 / 2 + (i ? 260 : -260), i ? -1 : 1); f.state = 'benched'; f.x = -999; });
       s.point = s.members[0]; s.point.state = 'intro'; s.point.x = W0 / 2 + (i ? 260 : -260); s.point.y = 0;
       s.meter = this.training ? METER_MAX : first ? 100 : Math.max(s.meter, 100); s.combo = { hits: 0, dmg: 0, t: 0 }; s.assistCd = [0, 0];
       if (!first || !this.team) s.sparkUsed = s.sparkUsed && !this.training;
@@ -241,6 +241,11 @@ class Battle {
   onKO(t, a, h) {
     if (t.state === 'ko') return;
     if (this.training) { t.hp = t.maxHp; t.red = t.maxHp; Game.popWorld(t.x, t.y - t.h - 40, 'HP RESET', '#7df', 24); return; }
+    // fallen god: KO'd while awakened by anyone who isn't divine -> rage and corrupt (once per round)
+    if (t.def.corruptForm && t.form && !t.corrupted) {
+      if (!(a && a.def && a.def.deity)) { t.corrupted = true; t.hp = 1; t.invul = 999; t.move = null; this.pendingCorrupt = t; return; }
+      Game.popWorld(t.x, t.y - t.h - 50, 'JUDGED BY THE DIVINE', '#ffe08a', 26);
+    }
     if (t.def.reviveForm && !t.revived) { t.revived = true; t.hp = 1; this.pendingRevive = t; return; }
     t.state = 'ko'; t.move = null; t.vy = Math.min(t.vy, -500); t.hp = 0;
     this.stats.perfect[t.side.idx] = false;
@@ -272,6 +277,12 @@ class Battle {
     Game.fx.update(1 / FPS);
     for (const l of Game.laters.slice()) { if (--l.f <= 0) { Game.laters.splice(Game.laters.indexOf(l), 1); l.fn(); } }
     if (this.pendingRevive) { const t = this.pendingRevive; this.pendingRevive = null; Ach.unlock('revive'); Game.playCutscene(Cutscenes.transform(t), () => { t.hp = Math.round((t.def.reviveHp || 300) * HP_MULT); t.red = t.hp; t.shownHp = t.hp; t.state = 'stand'; t.y = 0; t.invul = 90; t.enterForm(); t.side.meter = Math.max(t.side.meter, 300); }); return; }
+    if (this.pendingCorrupt) {
+      const t = this.pendingCorrupt; this.pendingCorrupt = null;
+      const apply = () => { t.corrupt(); t.hp = t.red = t.shownHp = Math.round(t.maxHp * (t.def.form.reviveFrac || 0.3)); t.state = 'stand'; t.y = 0; t.vx = t.vy = 0; t.invul = 90; t.side.meter = Math.max(t.side.meter, 200); };
+      if (Save.set.cutscenes === false) apply(); else Game.playCutscene((t.def.corruptCutscene || Cutscenes.transform)(t), apply);
+      return;
+    }
     if (this.pendingUlt) { this.runPendingUlt(); return; }
     if (this.freezeT > 0) { this.freezeT--; return; }
     if (this.hitstop > 0) { this.hitstop--; return; }

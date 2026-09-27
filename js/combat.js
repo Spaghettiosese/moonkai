@@ -56,7 +56,7 @@ const Combat = {
     // throws / command grabs
     if (h.guard === 'throw' || (opts.move && opts.move.grab)) {
       const g = opts.move && opts.move.grab;
-      if ((t.airborne && !(g && g.air)) || t.state === 'hit' || t.blockstun > 0 || t.state === 'down' || t.state === 'sdash') return null;
+      if ((t.airborne && !(g && g.air)) || (t.state === 'hit' && !(g && g.combo)) || t.blockstun > 0 || t.state === 'down' || t.state === 'sdash') return null;
       if (t.state === 'move' && t.move.inv && t.invul > 0) return null;
       t.state = 'grabbed'; t.move = null; t.grabT = 0; t.grabbedBy = a; t.vx = 0; t.vy = 0;
       a.grabbing = { victim: t, t: 0, anim: g ? g.anim : 'toss', dmg: g ? g.dmg : h.dmg, frames: g ? g.frames : 22, kb: h.kb, techable: !g, ult: g && g.ultConnect, heal: g && g.heal };
@@ -194,7 +194,8 @@ const Combat = {
     const [hx, hy] = p.from === 'mouth' ? f.mouth() : p.from === 'above' ? [f.x, f.y - f.h - 60] : f.hand();
     if (p.limit) { const own = this.projectiles.filter(q => q.owner === f && q.tag === p.tag); if (own.length >= p.limit) own[0].life = 0; }
     for (let i = 0; i < n; i++) {
-      const a = (p.angle || 0) + (n > 1 ? -p.spread / 2 + p.spread * i / (n - 1) : 0);
+      let a = (p.angle || 0) + (n > 1 ? -p.spread / 2 + p.spread * i / (n - 1) : 0);
+      if (p.ultConnect && f.opp) { const o = f.opp; a += clamp(Math.atan2((o.y - o.h / 2) - hy, Math.max(40, Math.abs(o.x - hx))), -1.1, 1.1); }
       const sp = p.speed * (f.form && f.def.form.projSpeed || 1);
       this.projectiles.push(Object.assign({}, p, {
         owner: f, side: f.side, x: hx + (p.offX || 0) * f.facing, y: hy + (p.offY || 0), vx: Math.cos(a) * sp * f.facing, vy: Math.sin(a) * sp,
@@ -322,7 +323,12 @@ const Combat = {
     }
   },
   beamOrigin(bm) { return bm.b.from === 'mouth' ? bm.owner.mouth() : bm.owner.hand(); },
-  beamAngle(bm) { const a = bm.b.angle || 0; return bm.owner.facing > 0 ? a : Math.PI - a; },
+  beamAngle(bm) {
+    let a = bm.b.angle || 0;
+    // ultimate beams track their target (within ~35°) so they can be comboed into juggles
+    if (bm.b.ultConnect && bm.owner.opp) { const [ox, oy] = this.beamOrigin(bm), o = bm.owner.opp; a = clamp(Math.atan2((o.y - o.h / 2) - oy, Math.max(40, Math.abs(o.x - ox))), -0.6, 0.6); }
+    return bm.owner.facing > 0 ? a : Math.PI - a;
+  },
   beamHitsPoint(bm, x, y, r) { const [ox, oy] = this.beamOrigin(bm), a = this.beamAngle(bm); const dx = x - ox, dy = y - oy; const along = dx * Math.cos(a) + dy * Math.sin(a); if (along < 0 || along > bm.b.len) return false; const perp = Math.abs(-dx * Math.sin(a) + dy * Math.cos(a)); return perp < bm.b.width / 2 + r; },
   beamHitsRect(bm, R) { for (let i = 0; i <= 4; i++) for (let j = 0; j <= 2; j++) if (this.beamHitsPoint(bm, R.x + R.w * j / 2, R.y + R.h * i / 4, 0)) return true; return false; },
   explode(x, y, r, owner, dmg, color, skip) {
@@ -336,8 +342,8 @@ const Combat = {
     const res = [];
     for (const t of this.targets(h.side)) {
       if (!rectsOverlap(rect, t.rect())) continue;
-      const last = h.hits.get(t) || -999;
-      if (h.t - last < (h.every || 9999)) continue;
+      // one-shot hazards hit each target once; `every` makes them re-hit on an interval
+      if (h.hits.has(t) && (!h.every || h.t - h.hits.get(t) < h.every)) continue;
       const r = this.resolveHit(t, h.owner, H_(Object.assign({ dmg: h.dmg || 60, hs: 24, kb: [200, -600], launch: true, ultConnect: h.ultConnect, status: h.status, stun: h.stun, guard: h.guard || 'mid' }, props)), { fromX: h.x, proj: true, move: h.move });
       if (r) { h.hits.set(t, h.t); res.push(r); }
     }

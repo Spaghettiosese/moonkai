@@ -376,7 +376,7 @@ const Acc = {
     const glow = (x, y, r, col) => { c.globalCompositeOperation = 'lighter'; glowCircle(c, x, y, r, hexA(col, 0.8)); c.globalCompositeOperation = 'source-over'; };
     switch (w.type) {
       case 'blade': case 'katana': case 'dual': case 'greatsword': {
-        const len = w.type === 'greatsword' ? 70 : w.type === 'katana' ? 54 : 42, ang = atk ? -0.1 : -1.1, wd = w.type === 'greatsword' ? 10 : 5;
+        const len = w.len || (w.type === 'greatsword' ? 70 : w.type === 'katana' ? 54 : 42), ang = atk ? -0.1 : -1.1, wd = w.type === 'greatsword' ? 10 : 5;
         const tx = hx + Math.cos(ang) * len, ty = hy + Math.sin(ang) * len;
         line(hx, hy, tx, ty, wd, w.color);
         c.strokeStyle = 'rgba(255,255,255,0.75)'; c.lineWidth = 1.4; c.beginPath(); c.moveTo(hx, hy); c.lineTo(tx, ty); c.stroke();
@@ -575,7 +575,7 @@ function faceConfig(def, form) {
 }
 const PortraitCache = {};
 function portrait(def, size = 96, opts = {}) {
-  const k = def.id + ':' + size + ':' + (opts.form ? 1 : 0) + ':' + (opts.alt || 0) + ':' + (opts.expr || '');
+  const k = (def.portraitId || def.id) + ':' + size + ':' + (opts.form ? 1 : 0) + ':' + (opts.alt || 0) + ':' + (opts.expr || '');
   if (PortraitCache[k]) return PortraitCache[k];
   const cv = document.createElement('canvas'); cv.width = size; cv.height = size;
   const c = cv.getContext('2d');

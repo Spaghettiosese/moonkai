@@ -57,6 +57,18 @@ class Fighter {
     Save.bump('transforms'); if (this.id === 'eric') Ach.unlock('moonkai');
     if (this.def.lines && this.def.lines.form) this.say(pick(this.def.lines.form));
   }
+  // Fallen/corrupted rebirth: swap in a derived definition with the corrupt kit (see def.corruptForm)
+  corrupt() {
+    const base = this.baseDef || this.def, C = base.corruptForm, d = Object.create(base);
+    Object.assign(d, { form: C, portraitId: base.id + '_fallen', face: Object.assign({}, base.face, C.face), draw: C.draw, color: C.color || base.color, fx: C.ult.ult.fx,
+      lines: Object.assign({}, base.lines, C.lines), passive: C.passive || base.passive, passiveTick: C.passiveTick, passiveDmg: C.passiveDmg, deity: false, ultLocked: null });
+    if (C.normals) d.normals = C.normals;
+    this.baseDef = base; this.def = d; this.corrupted = true; this.form = true; this.formT = 0;
+    C.onStart && C.onStart(this);
+    Game.fx.burst(this.x, this.y - 80, 80, { color: ['#ff1a3a', '#1a0008', '#fff'], size: 12, speed: 600, glow: true, life: 0.9 });
+    Game.popWorld(this.x, this.y - this.h - 30, C.name + '!', C.color || '#ff1a3a', 34);
+    if (d.lines.form) this.say(pick(d.lines.form), 150);
+  }
   exitForm() {
     this.form = false; this.formT = 0;
     Game.fx.burst(this.x, this.y - 60, 40, { color: ['#fff', this.def.color], size: 8, speed: 300, glow: true, life: 0.7 });
