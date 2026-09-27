@@ -10,6 +10,7 @@ const Game = {
   sel: 0, banner: null, koT: 0, winner: null, afterCutscene: null,
 
   // ---------- flow ----------
+  mode: 'versus',
   startFight(p1Def, p2Def) {
     this.p1 = new Fighter(p1Def, 300, 1, false);
     this.p2 = new Fighter(p2Def, W - 300, -1, true);
@@ -28,6 +29,9 @@ const Game = {
     const cs = this.cutscene; this.cutscene = null;
     if (cs.onEnd) cs.onEnd();
   },
+  cardLayout() { const cw = 220, ch = 290, gap = 22; return { cw, ch, gap, x0: W / 2 - (cw * CHARACTERS.length + gap * (CHARACTERS.length - 1)) / 2 }; },
+  modeBtn: { x: W - 250, y: 20, w: 220, h: 40 },
+  toggleMode() { this.mode = this.mode === 'versus' ? 'training' : 'versus'; Sfx.jump(); },
   showBanner(text, color, dur = 1.2) { this.banner = { text, color, t: 0, dur }; },
   popText(x, y, txt, color = '#fff', size = 26) { this.texts.push({ x, y, txt, color, size, t: 0 }); },
 
@@ -59,6 +63,9 @@ const Game = {
       this.hitUlt(opp, f, 30);
       f.hp = Math.min(f.maxHp, f.hp + 25);
       this.popText(f.x, f.y - f.h - 30, '+25 HP', '#7dff8a', 34);
+    } else if (f.id === 'kael') {
+      City.destroyAll(() => Math.random() < 0.75, fx, true);
+      this.hitUlt(opp, f, 33);
     } else if (f.id === 'vex') {
       City.destroyAll(() => Math.random() < 0.6, fx, true);
       this.hitUlt(opp, f, 32);
@@ -101,7 +108,24 @@ const Game = {
     }
     this.shake = Math.max(this.shake, a * 0.8);
     this.popText(cx + rand(-15, 15), t.y - t.h - 10, Math.round(a).toString(), blocked ? '#9cf' : '#ffe28a');
+    if (t.hp <= 0 && t.def.reviveForm && !t.transformed && !this.winner) { this.triggerRevive(t); return; }
+    if (t.hp <= 0 && this.mode === 'training') {
+      t.hp = t.maxHp; t.shownHp = t.maxHp; this.popText(t.x, t.y - t.h - 40, 'HP RESET', '#7df', 30); return;
+    }
     if (t.hp <= 0 && !this.winner) this.onKO(src, t);
+  },
+  triggerRevive(f) {
+    f.act = null; f.vx = 0; f.hurtT = 0;
+    this.projectiles = []; this.beams = []; this.hazards = [];
+    this.playCutscene(Cutscenes.transform(f), () => {
+      f.transformed = true; f.formT = FORM_TIME; f.hp = 60; f.shownHp = 60; f.invuln = 1.2;
+      f.y = GROUND; f.vy = 0; f.pose = 'idle';
+      f.ult = Math.max(f.ult, 50);
+      this.shake = 20;
+      this.fx.burst(f.x, f.y - 70, 70, { color: ['#ff3b1a', '#ff8a1a', '#3fe0ff'], size: 12, speed: 520, glow: true, life: 0.9 });
+      this.popText(f.x, f.y - f.h - 30, 'REVIVED — DEMON FORM', '#ff4a2a', 32);
+      this.popText(f.x, f.y - f.h - 70, 'ULTIMATE UNLOCKED', '#ffd35a', 24);
+    });
   },
   onKO(winner, loser) {
     this.winner = winner; this.koT = 3.2; this.slowmo = 0.3;
@@ -114,7 +138,15 @@ const Game = {
     if (this.koT > 0) { this.koT -= dt / this.slowmo; if (this.koT <= 0) { this.state = 'end'; this.endT = 0; } }
     if (this.hitstop > 0) { this.hitstop -= dt; return; }
     const c1 = this.winner ? {} : playerControl();
-    const c2 = this.winner ? {} : cpuControl(p2, p1, dt);
+    const training = this.mode === 'training';
+    const c2 = this.winner ? {} : training ? (this.dummyFights ? cpuControl(p2, p1, dt) : { block: this.dummyBlock }) : cpuControl(p2, p1, dt);
+    if (training) {
+      p1.energy = Math.min(100, p1.energy + dt * 25); p1.ult = Math.min(100, p1.ult + dt * 25);
+      if (tapped('KeyR')) { for (const f of [p1, p2]) { f.hp = f.maxHp; f.shownHp = f.maxHp; f.transformed = false; f.formT = 0; f.ult = 0; f.energy = 0; } p1.x = 300; p2.x = W - 300; City.generate(); this.popText(W / 2, 200, 'RESET', '#7df', 40); }
+      if (tapped('KeyX')) this.damage(p1, 25, p2, 200, true);
+      if (tapped('KeyC')) { this.dummyFights = !this.dummyFights; this.popText(p2.x, p2.y - p2.h - 30, this.dummyFights ? 'DUMMY: FIGHTS BACK' : 'DUMMY: PASSIVE', '#7df'); }
+      if (tapped('KeyB')) { this.dummyBlock = !this.dummyBlock; this.popText(p2.x, p2.y - p2.h - 30, this.dummyBlock ? 'DUMMY: BLOCKING' : 'DUMMY: OPEN', '#7df'); }
+    }
     if (tapped('KeyM') && !this.winner) { p1.energy = 100; p1.ult = 100; this.popText(p1.x, p1.y - p1.h - 30, 'DEMO: METERS FULL', '#7df'); }
     p1.update(c1, dt, p2);
     if (this.cutscene) return;
@@ -130,6 +162,7 @@ const Game = {
     // projectiles
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i];
+      if (p.g) p.vy += p.g * dt;
       p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
       this.fx.add({ x: p.x, y: p.y, vx: -p.vx * 0.1 + rand(-20, 20), vy: rand(-20, 20), life: 0.25, size: p.r * 0.7, color: p.color, glow: true });
       const tgt = p.owner === p1 ? p2 : p1;
@@ -141,6 +174,12 @@ const Game = {
       }
       // projectile clash
       for (const q of this.projectiles) if (q !== p && q.owner !== p.owner && Math.hypot(q.x - p.x, q.y - p.y) < p.r + q.r) { q.life = 0; dead = true; }
+      if (dead && p.kind === 'hellorb') {
+        this.fx.burst(p.x, Math.min(p.y, GROUND), 40, { color: ['#ff3b1a', '#ff8a1a', '#ffd08a'], size: 14, speed: 380, glow: true, life: 0.6 });
+        Sfx.boom(); this.shake = Math.max(this.shake, 10);
+        City.hit(p.x - 70, p.x + 70, GROUND - 60, 50, this.fx);
+        if (tgt.hp > 0 && Math.abs(tgt.x - p.x) < 90 + tgt.w / 2 && !rectsOverlap(pr, tgt.rect())) this.damage(tgt, 6, p.owner, 300);
+      }
       if (dead) {
         this.fx.burst(p.x, p.y, 12, { color: [p.color, p.core], size: p.r * 0.8, speed: 250, glow: true, life: 0.35 });
         this.projectiles.splice(i, 1);
@@ -284,19 +323,23 @@ const Game = {
       const my = y + 56, mw = hw * 0.48;
       const tx = left ? hx : hx + hw - mw;
       c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(tx, my, mw, 12);
-      const tv = f.transformed ? f.formT / FORM_TIME : f.energy / 100;
+      const tv = f.def.reviveForm ? (f.transformed ? 1 : 0) : f.transformed ? f.formT / FORM_TIME : f.energy / 100;
       c.fillStyle = f.transformed ? f.def.color : (f.energy >= 100 ? (Math.sin(this.t * 10) > 0 ? '#9cf' : '#fff') : '#4a8cff');
       c.fillRect(left ? tx : tx + mw - mw * tv, my + 2, mw * tv, 8);
-      smallText(c, f.transformed ? 'FORM ACTIVE' : f.energy >= 100 ? (f.cpu ? 'TRANSFORM READY' : 'TRANSFORM READY [L]') : 'TRANSFORM', left ? tx : tx + mw, my + 22, 12, '#bcd', left ? 'left' : 'right');
+      smallText(c, f.def.reviveForm ? (f.transformed ? 'CORE SHATTERED · DEMON' : 'CORE INTACT · DIES ONCE TO TRANSFORM') : f.transformed ? 'FORM ACTIVE' : f.energy >= 100 ? (f.cpu ? 'TRANSFORM READY' : 'TRANSFORM READY [L]') : 'TRANSFORM', left ? tx : tx + mw, my + 22, 12, '#bcd', left ? 'left' : 'right');
       // ultimate meter
       const ux = left ? hx + hw * 0.52 : hx, uw = hw * 0.48;
       c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(ux, my, uw, 12);
       c.fillStyle = f.ult >= 100 ? (Math.sin(this.t * 12) > 0 ? '#ffd35a' : '#fff') : '#c9a23a';
       c.fillRect(left ? ux : ux + uw - uw * f.ult / 100, my + 2, uw * f.ult / 100, 8);
-      smallText(c, f.ult >= 100 ? (f.cpu ? 'ULTIMATE READY' : 'ULTIMATE READY [I]') : 'ULTIMATE', left ? ux : ux + uw, my + 22, 12, '#fd8', left ? 'left' : 'right');
+      smallText(c, f.def.reviveForm && !f.transformed ? 'ULTIMATE LOCKED UNTIL REVIVE' : f.ult >= 100 ? (f.cpu ? 'ULTIMATE READY' : 'ULTIMATE READY [I]') : 'ULTIMATE', left ? ux : ux + uw, my + 22, 12, '#fd8', left ? 'left' : 'right');
     };
     bars(this.p1, true); bars(this.p2, false);
     bigText(c, `CITY DAMAGE  $${City.damage.toFixed(1)}B`, W / 2, 40, 22, '#ff9a5a');
+    if (this.mode === 'training') {
+      bigText(c, 'TRAINING', W / 2, 96, 26, '#7df');
+      smallText(c, `R reset · X hurt yourself 25 · C dummy ${this.dummyFights ? 'fights back' : 'passive'} · B dummy ${this.dummyBlock ? 'blocks' : 'open'} · meters refill fast`, W / 2, 120, 14, '#bfe9ff', 'center');
+    }
     smallText(c, `${City.destroyed} buildings destroyed`, W / 2, 64, 14, '#caa', 'center');
     smallText(c, 'A/D move · W jump (Phoenix: hold to fly) · S block · J attack · K special · L transform · I ULTIMATE · M demo-fill meters · ESC menu', W / 2, H - 16, 14, 'rgba(255,255,255,0.7)', 'center');
     if (this.banner) {
@@ -324,8 +367,13 @@ const Game = {
   drawSelect(c) {
     const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0b0a1e'); g.addColorStop(1, '#2a1640');
     c.fillStyle = g; c.fillRect(0, 0, W, H);
-    bigText(c, 'CHOOSE YOUR FIGHTER', W / 2, 50, 54, '#fff', '#000');
-    const cw = 250, ch = 300, gap = 30, x0 = W / 2 - (cw * 3 + gap * 2) / 2;
+    bigText(c, 'CHOOSE YOUR FIGHTER', W / 2 - 60, 50, 50, '#fff', '#000');
+    const mb = this.modeBtn, tr = this.mode === 'training';
+    c.fillStyle = tr ? 'rgba(80,200,255,0.25)' : 'rgba(255,211,90,0.2)'; c.fillRect(mb.x, mb.y, mb.w, mb.h);
+    c.strokeStyle = tr ? '#7df' : '#ffd35a'; c.lineWidth = 2; c.strokeRect(mb.x, mb.y, mb.w, mb.h);
+    bigText(c, 'MODE: ' + (tr ? 'TRAINING' : 'VERSUS'), mb.x + mb.w / 2, mb.y + mb.h / 2, 22, tr ? '#7df' : '#ffd35a', '#000');
+    smallText(c, 'T or tap to switch', mb.x + mb.w / 2, mb.y + mb.h + 12, 12, '#aaa', 'center');
+    const { cw, ch, gap, x0 } = this.cardLayout();
     CHARACTERS.forEach((d, i) => {
       const x = x0 + i * (cw + gap), y = 90, on = i === this.sel;
       c.fillStyle = on ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.35)';
@@ -339,7 +387,7 @@ const Game = {
       c.restore();
       c.strokeStyle = on ? d.color : '#444'; c.lineWidth = on ? 4 : 2; c.strokeRect(x, y, cw, ch);
       bigText(c, d.name, x + cw / 2, y + ch + 26, 34, on ? d.color : '#999');
-      smallText(c, d.side === 'VILLAIN' ? '☠ VILLAIN' : '★ HERO', x + cw / 2, y + ch + 54, 15, d.side === 'VILLAIN' ? '#d58bff' : '#8fd3ff', 'center');
+      smallText(c, d.side === 'VILLAIN' ? '☠ VILLAIN' : d.side === 'ANTI-HERO' ? '✦ ANTI-HERO' : '★ HERO', x + cw / 2, y + ch + 54, 15, d.side === 'VILLAIN' ? '#d58bff' : d.side === 'ANTI-HERO' ? '#ff8a6a' : '#8fd3ff', 'center');
     });
     const d = CHARACTERS[this.sel];
     const px = 90, py = 480;
@@ -364,7 +412,7 @@ const Game = {
       smallText(c, desc, 656, my + 18, 13, '#bbb');
       my += 44;
     }
-    smallText(c, '← / → or A / D to choose, ENTER to fight  ·  touch: tap a fighter, tap again to fight  ·  opponent is a random CPU', W / 2, H - 14, 15, 'rgba(255,255,255,0.7)', 'center');
+    smallText(c, '← / → choose  ·  ENTER fight  ·  T switch Versus / Training  ·  touch: tap a fighter, tap again to fight', W / 2, H - 14, 15, 'rgba(255,255,255,0.7)', 'center');
   },
 
   // ---------- end screen ----------
@@ -403,8 +451,9 @@ const Game = {
       City.update(dt, this.fx); this.fx.update(dt);
       if (tapped('Enter', 'Space')) { this.state = 'select'; Sfx.blast(); }
     } else if (this.state === 'select') {
-      if (tapped('ArrowLeft', 'KeyA')) { this.sel = (this.sel + 2) % 3; Sfx.jump(); }
-      if (tapped('ArrowRight', 'KeyD')) { this.sel = (this.sel + 1) % 3; Sfx.jump(); }
+      if (tapped('ArrowLeft', 'KeyA')) { this.sel = (this.sel + CHARACTERS.length - 1) % CHARACTERS.length; Sfx.jump(); }
+      if (tapped('ArrowRight', 'KeyD')) { this.sel = (this.sel + 1) % CHARACTERS.length; Sfx.jump(); }
+      if (tapped('KeyT', 'ArrowUp', 'ArrowDown', 'KeyW', 'KeyS')) this.toggleMode();
       if (tapped('Enter', 'Space')) {
         const others = CHARACTERS.filter((_, i) => i !== this.sel);
         this.startFight(CHARACTERS[this.sel], pick(others));

@@ -307,6 +307,69 @@ function drawVex(c, v) {
   c.restore();
 }
 
+
+// ---------------- KAEL ----------------
+const KAEL_PAL = { skin: '#c9b3a0', top: '#2b3440', topDark: '#1b222b', pants: '#232a33', pantsDark: '#161b21', boots: '#0e1115', belt: '#3fe0ff', glove: '#2b3440' };
+const DEMON_PAL = { skin: '#6e1414', top: '#3a0b0b', topDark: '#220606', pants: '#2a0808', pantsDark: '#180404', boots: '#0a0202', belt: '#ff3b1a', glove: '#1a0303' };
+function drawCore(c, x, y, r, t, broken) {
+  c.save(); c.translate(x, y);
+  c.globalCompositeOperation = 'lighter';
+  glowCircle(c, 0, 0, r * 3, broken ? 'rgba(255,60,20,0.8)' : 'rgba(60,220,255,0.8)', 'rgba(0,0,0,0)');
+  c.globalCompositeOperation = 'source-over';
+  c.fillStyle = broken ? '#ff5a1a' : '#bff6ff';
+  c.beginPath();
+  for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + Math.PI / 6; c.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+  c.closePath(); c.fill();
+  c.strokeStyle = broken ? '#1a0000' : '#1d6a80'; c.lineWidth = r * 0.18;
+  if (broken) { c.beginPath(); c.moveTo(-r, -r * 0.3); c.lineTo(0, 0); c.lineTo(r * 0.4, r); c.moveTo(0, 0); c.lineTo(r * 0.7, -r * 0.8); c.stroke(); }
+  else { c.stroke(); circle(c, 0, 0, r * 0.35 * (0.8 + 0.2 * Math.sin(t * 6)), '#ffffff'); }
+  c.restore();
+}
+function drawKael(c, v) {
+  const t = v.anim || 0, D = v.transformed;
+  if (D) glowCircle(c, 0, -60, 95, 'rgba(255,40,10,0.3)', 'rgba(120,0,0,0)');
+  drawHumanoid(c, v, D ? DEMON_PAL : KAEL_PAL, {
+    back(c, P) {
+      if (!D) return;
+      // tattered demon wings
+      for (const side of [-1, 1]) {
+        c.save(); c.translate(P.sh[0] - 4, P.sh[1] + 2); c.rotate(side * 0.15 - 0.35 + Math.sin(t * 3) * 0.08);
+        c.fillStyle = side < 0 ? '#1a0303' : '#2a0606';
+        c.beginPath(); c.moveTo(0, 0); c.lineTo(-30, -44 * (side < 0 ? 1.1 : 1)); c.lineTo(-70, -30); c.lineTo(-58, -8); c.lineTo(-74, 4); c.lineTo(-46, 10); c.lineTo(-50, 26); c.lineTo(-16, 16); c.closePath(); c.fill();
+        c.restore();
+      }
+      // tail
+      c.strokeStyle = '#2a0606'; c.lineWidth = 4; c.beginPath(); c.moveTo(P.hip[0] - 6, P.hip[1] + 4);
+      c.quadraticCurveTo(P.hip[0] - 40, P.hip[1] + 30, P.hip[0] - 46 + Math.sin(t * 4) * 6, P.hip[1] - 4); c.stroke();
+      c.fillStyle = '#ff3b1a'; c.beginPath(); const tx = P.hip[0] - 46 + Math.sin(t * 4) * 6, ty = P.hip[1] - 4;
+      c.moveTo(tx - 5, ty); c.lineTo(tx, ty - 10); c.lineTo(tx + 5, ty); c.fill();
+    },
+    chest(c, P) {
+      const x = lerp(P.hip[0], P.sh[0], 0.72), y = lerp(P.hip[1], P.sh[1], 0.72);
+      if (!D && !v.coreBroken) { limb(c, [x - 10, y - 8], [x + 10, y + 8], 3, '#556'); limb(c, [x + 10, y - 8], [x - 10, y + 8], 3, '#556'); }
+      drawCore(c, x, y, 7, t, D || v.coreBroken);
+    },
+    head(c, P) {
+      const [hx, hy] = P.head;
+      if (!D) {
+        c.fillStyle = '#e8e8f0';
+        c.beginPath(); c.moveTo(hx - 12, hy - 2); c.lineTo(hx - 14, hy - 12); c.lineTo(hx - 4, hy - 13); c.lineTo(hx + 2, hy - 16); c.lineTo(hx + 12, hy - 8); c.lineTo(hx + 4, hy - 6); c.closePath(); c.fill();
+        circle(c, hx + 6, hy, 2, '#3fe0ff');
+      } else {
+        // horns + burning eyes
+        c.fillStyle = '#140202';
+        c.beginPath(); c.moveTo(hx - 6, hy - 8); c.quadraticCurveTo(hx - 20, hy - 20, hx - 14, hy - 34); c.quadraticCurveTo(hx - 10, hy - 18, hx - 1, hy - 10); c.fill();
+        c.beginPath(); c.moveTo(hx + 4, hy - 9); c.quadraticCurveTo(hx + 8, hy - 24, hx + 20, hy - 30); c.quadraticCurveTo(hx + 12, hy - 18, hx + 10, hy - 6); c.fill();
+        c.globalCompositeOperation = 'lighter';
+        glowCircle(c, hx + 6, hy, 9, 'rgba(255,90,20,1)');
+        c.globalCompositeOperation = 'source-over';
+        circle(c, hx + 6, hy, 2.2, '#fff2a0');
+        limb(c, [hx + 2, hy + 6], [hx + 11, hy + 6], 2, '#ff5a1a');
+      }
+    },
+  });
+}
+
 // ---------------- ROSTER ----------------
 const CHARACTERS = [
   {
@@ -353,5 +416,20 @@ const CHARACTERS = [
     formName: 'VOID WRAITH', formScale: 1.35, formSpeed: 1.05, formJump: 1, formArmor: 0.75,
     transformName: 'VOID FORM', ultName: 'EVENT HORIZON',
     draw: drawVex,
+  },
+  {
+    id: 'kael', name: 'KAEL', title: 'The Hollow Core', side: 'ANTI-HERO', color: '#ff4a2a', color2: '#1d4a5a',
+    bio: 'A soldier kept alive by an experimental core bolted into his chest. The core does not heal him. It holds something in. When he dies the first time, the core shatters, and what comes out is not human.',
+    quote: '"Kill me once. Please. I\'m begging you."',
+    stats: { POWER: 4, SPEED: 3, DEFENSE: 4, CHAOS: 4 },
+    moves: [
+      ['J', 'Core Strike', 'Steel-knuckle punch → Demon: Rending Claw'],
+      ['K', 'Core Pulse', 'Cyan energy shot → Demon: Hellfire Orb (explodes)'],
+      ['—', 'CORE SHATTER', 'No button. His first KO shatters the core and REVIVES him as a demon (60 HP)'],
+      ['I', 'HELLFIRE BARRAGE', 'ULTIMATE (locked until revived): a rain of hellfire meteors'],
+    ],
+    formName: 'DEMON', formScale: 1.25, formSpeed: 1.1, formJump: 1.05, formArmor: 0.8,
+    transformName: 'CORE SHATTER', ultName: 'HELLFIRE BARRAGE',
+    reviveForm: true, draw: drawKael,
   },
 ];

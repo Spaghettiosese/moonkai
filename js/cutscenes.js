@@ -609,8 +609,167 @@ function csVersus(p1, p2) {
   };
 }
 
+
+// ============================================================
+//  KAEL — CORE SHATTER (revive transformation)
+// ============================================================
+function csKaelRevive(f) {
+  const fx = new ParticleSystem(2000);
+  const shards = [];
+  return {
+    name: 'CORE SHATTER', dur: 5.4, fx,
+    cues: [[0.2, () => Sfx.heartbeat()], [0.9, () => Sfx.heartbeat()], [1.5, () => Sfx.tone(1800, 0.2, 'triangle', 0.1, 900)], [1.8, () => Sfx.tone(1400, 0.2, 'triangle', 0.12, 600)], [2.15, () => { Sfx.boom(); Sfx.slam(); }], [2.9, () => Sfx.roar()], [3.4, () => Sfx.fire()]],
+    draw(c, t) {
+      if (t < 1.3) {
+        // he's down. the core flickers.
+        c.fillStyle = '#07080c'; c.fillRect(0, 0, W, H);
+        glowCircle(c, W / 2, H - 150, 500, 'rgba(40,60,80,0.35)', 'rgba(0,0,0,0)');
+        c.fillStyle = '#101218'; c.fillRect(0, H - 150, W, 150);
+        c.save(); c.translate(W / 2 - 150, H - 150); c.rotate(-Math.PI / 2 * 0.97); c.scale(3, 3);
+        f.def.draw(c, { pose: 'hurt', anim: 0, transformed: false });
+        c.restore();
+        const flick = Math.random() < 0.35 ? 0 : 1;
+        c.globalCompositeOperation = 'lighter';
+        glowCircle(c, W / 2 + 60, H - 175, 60 * flick, 'rgba(60,220,255,0.6)', 'rgba(0,0,0,0)');
+        c.globalCompositeOperation = 'source-over';
+        vignette(c, 0.9);
+        caption(c, '...so this is what dying feels like.', t, 0.1, 1.25, '#bfe9ff');
+      } else if (t < 2.25) {
+        // extreme close-up: the core cracks
+        const p = seg(t, 1.3, 2.1);
+        c.fillStyle = '#0b0d12'; c.fillRect(0, 0, W, H);
+        c.fillStyle = '#1b222b'; c.fillRect(0, 0, W, H);
+        const sh = p * 10; c.save(); c.translate(rand(-sh, sh), rand(-sh, sh));
+        drawCore(c, W / 2, H / 2, 170, t, false);
+        c.strokeStyle = '#05080a'; c.lineCap = 'round';
+        for (let i = 0; i < 9; i++) {
+          const a = i * 0.7 + 0.3, len = 190 * Math.min(1, p * 1.3 - i * 0.07);
+          if (len <= 0) continue;
+          c.lineWidth = 8 - i * 0.5; c.beginPath(); c.moveTo(W / 2, H / 2);
+          c.lineTo(W / 2 + Math.cos(a) * len * 0.5 + 10, H / 2 + Math.sin(a) * len * 0.5 - 8); c.lineTo(W / 2 + Math.cos(a) * len, H / 2 + Math.sin(a) * len); c.stroke();
+        }
+        c.globalCompositeOperation = 'lighter';
+        glowCircle(c, W / 2, H / 2, 80 * p, 'rgba(255,60,20,0.9)', 'rgba(255,0,0,0)');
+        c.globalCompositeOperation = 'source-over';
+        c.restore();
+        if (t > 1.5) bigText(c, 'CRACK', W * 0.22, 180, 60, '#bfe9ff');
+        if (t > 1.8) bigText(c, 'CRACK', W * 0.78, H - 180, 70, '#ff7a5a');
+      } else {
+        // shatter → the demon rises out of the fire
+        if (!shards.length) for (let i = 0; i < 40; i++) {
+          const a = rand(0, Math.PI * 2), sp = rand(300, 1200);
+          shards.push({ x: W / 2, y: H / 2, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(0, 6), s: rand(10, 40) });
+        }
+        const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#120000'); g.addColorStop(1, '#5a0a02');
+        c.fillStyle = g; c.fillRect(0, 0, W, H);
+        for (let i = 0; i < 6; i++) fx.add({ x: rand(0, W), y: H, vx: rand(-20, 20), vy: rand(-500, -200), life: rand(0.6, 1.2), size: rand(12, 30), color: pick(['#ff3b1a', '#ff8a1a', '#7a0000']), glow: true, grow: -10 });
+        fx.draw(c);
+        const rise = ease.out(seg(t, 2.5, 3.6));
+        const sh = t < 3.6 ? 8 : 0; c.save(); c.translate(rand(-sh, sh), rand(-sh, sh));
+        silhouette(c, o => drawCharAt(o, f.def, W / 2, H + 40 + (1 - rise) * 380, 4.2, 1, { pose: t < 3.2 ? 'charge' : 'victory', anim: t, transformed: true }), '#0a0000', 1);
+        c.globalCompositeOperation = 'lighter';
+        glowCircle(c, W / 2 + 6 * 4.2, H + 40 + (1 - rise) * 380 - 101 * 4.2, 40, 'rgba(255,90,20,1)', 'rgba(255,0,0,0)');
+        glowCircle(c, W / 2 + 4, H + 40 + (1 - rise) * 380 - 78 * 4.2, 50, 'rgba(255,60,20,0.9)', 'rgba(255,0,0,0)');
+        c.globalCompositeOperation = 'source-over';
+        c.restore();
+        // core shards flying at the camera
+        const dt = t - 2.25;
+        for (const s of shards) {
+          const x = s.x + s.vx * dt, y = s.y + s.vy * dt + 300 * dt * dt;
+          c.save(); c.translate(x, y); c.rotate(s.r + dt * 6); c.fillStyle = 'rgba(190,246,255,0.9)';
+          c.beginPath(); c.moveTo(0, -s.s); c.lineTo(s.s * 0.4, 0); c.lineTo(0, s.s * 0.6); c.lineTo(-s.s * 0.3, 0); c.fill(); c.restore();
+        }
+        caption(c, 'It was never keeping me alive. It was keeping THIS in.', t, 3.0, 4.2, '#ffb09a');
+        titleSlam(c, 'CORE SHATTERED', 'DEMON FORM  •  REVIVED WITH 60 HP  •  ULTIMATE UNLOCKED', t, 4.2, '#ff4a2a', 110);
+        flashAt(c, t, 2.25, 2.6, '#ffffff');
+      }
+    },
+  };
+}
+
+// ============================================================
+//  KAEL — HELLFIRE BARRAGE ultimate
+// ============================================================
+function csKaelUlt(f, opp) {
+  const fx = new ParticleSystem(3000);
+  const city = makeCineCity(); const baseY = H - 20;
+  const portals = Array.from({ length: 11 }, (_, i) => ({ x: 80 + i * 112 + rand(-20, 20), y: rand(90, 220), at: 0.5 + i * 0.08 }));
+  const meteors = []; let spawned = 0, last = 0;
+  const target = W * 0.7;
+  return {
+    name: 'HELLFIRE BARRAGE', dur: 7.0, fx,
+    cues: [[0, () => Sfx.roar()], [0.5, () => Sfx.charge(1.2)], [1.6, () => Sfx.fire()], [4.3, () => Sfx.charge(0.5)], [4.8, () => { Sfx.boom(); Sfx.boom(0.2); }]],
+    draw(c, t) {
+      const dt = Math.max(0, t - last); last = t;
+      if (t < 4.9) {
+        const red = seg(t, 0, 1.4);
+        const g = c.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, `rgb(${lerp(8, 60, red)},${lerp(8, 4, red)},${lerp(24, 4, red)})`); g.addColorStop(1, `rgb(${lerp(50, 160, red)},${lerp(30, 30, red)},${lerp(70, 10, red)})`);
+        c.fillStyle = g; c.fillRect(0, 0, W, H);
+        const shk = t > 1.6 ? 7 : 0; c.save(); c.translate(rand(-shk, shk), rand(-shk, shk));
+        // portals of hell tear open across the sky
+        for (const p of portals) {
+          const k = ease.back(seg(t, p.at, p.at + 0.3)); if (k <= 0) continue;
+          c.save(); c.translate(p.x, p.y); c.scale(k, k * 0.45);
+          c.globalCompositeOperation = 'lighter';
+          glowCircle(c, 0, 0, 70, 'rgba(255,60,20,0.7)', 'rgba(255,0,0,0)');
+          c.globalCompositeOperation = 'source-over';
+          circle(c, 0, 0, 36, '#1a0000');
+          c.strokeStyle = '#ff5a1a'; c.lineWidth = 4; c.setLineDash([10, 8]); c.lineDashOffset = t * 60;
+          c.beginPath(); c.arc(0, 0, 44, 0, Math.PI * 2); c.stroke(); c.setLineDash([]);
+          c.restore();
+        }
+        // meteors
+        if (t > 1.6 && t < 4.2) {
+          while (spawned < (t - 1.6) * 22) {
+            const p = pick(portals);
+            meteors.push({ x: p.x, y: p.y, tx: rand(60, W - 60), ty: baseY - rand(0, 160), t: 0, dur: rand(0.45, 0.7), big: false });
+            spawned++;
+          }
+        }
+        if (t > 4.2 && !meteors.some(m => m.big)) meteors.push({ x: W / 2, y: -150, tx: target, ty: baseY - 60, t: 0, dur: 0.6, big: true });
+        for (const m of meteors) {
+          if (m.done) continue;
+          m.t += dt; const p = Math.min(1, m.t / m.dur);
+          const x = lerp(m.x, m.tx, p), y = lerp(m.y, m.ty, p * p);
+          const r = m.big ? 70 : 12;
+          for (let i = 0; i < (m.big ? 6 : 1); i++) fx.add({ x: x + rand(-r / 2, r / 2), y: y + rand(-r / 2, r / 2), vx: rand(-30, 30), vy: rand(-60, 0), life: m.big ? 0.6 : 0.35, size: r * rand(0.5, 1), color: pick(['#ff3b1a', '#ff8a1a', '#ffd08a']), glow: true, grow: -r });
+          c.globalCompositeOperation = 'lighter'; glowCircle(c, x, y, r * 2, 'rgba(255,200,120,1)', 'rgba(255,40,0,0)'); c.globalCompositeOperation = 'source-over';
+          if (p >= 1) {
+            m.done = true;
+            fx.burst(m.tx, m.ty, m.big ? 120 : 16, { color: ['#ff3b1a', '#ff8a1a', '#ffe28a'], size: m.big ? 30 : 14, speed: m.big ? 900 : 320, glow: true, life: 0.8 });
+            for (const b of city) if (!b.dead && Math.abs(b.x + b.w / 2 - m.tx) < (m.big ? 400 : b.w * 0.6)) b.dead = true;
+            if (!m.big && Math.random() < 0.3) Sfx.boom();
+          }
+        }
+        drawCineCity(c, city, baseY);
+        silhouette(c, o => drawCharAt(o, opp.def, target, baseY, opp.transformed && opp.def.id === 'eric' ? 0.9 : 1.6, -1, { pose: t > 2.5 ? 'hurt' : 'block', anim: t, transformed: opp.transformed }), '#140404');
+        fx.draw(c);
+        drawCharAt(c, f.def, W * 0.2, baseY - 150 - Math.sin(t * 2) * 10, 2.4, 1, { pose: t < 1.6 ? 'charge' : 'cast', anim: t, transformed: true });
+        c.restore();
+        caption(c, 'You killed me once. Now you get to meet what I really am.', t, 0.1, 1.6, '#ffb09a');
+        if (t > 1.8 && t < 4.2) { c.globalAlpha = seg(t, 1.8, 2.0); bigText(c, 'HELLFIRE', W / 2, 330, 90, '#ff5a1a', '#1a0000'); c.globalAlpha = 1; }
+        if (t > 2.6 && t < 4.2) { c.globalAlpha = seg(t, 2.6, 2.8); bigText(c, 'BARRAGE!!', W / 2, 420, 100, '#ffd08a', '#1a0000'); c.globalAlpha = 1; }
+      } else {
+        const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#1a0202'); g.addColorStop(1, '#7a1a04');
+        c.fillStyle = g; c.fillRect(0, 0, W, H);
+        drawCineCity(c, city.map(b => Object.assign({}, b, { dead: true })), baseY, '#140303', false);
+        if (Math.random() < 0.9) fx.add({ x: rand(0, W), y: baseY - rand(0, 60), vx: rand(-10, 30), vy: rand(-60, -20), life: rand(2, 3), size: rand(14, 30), color: 'rgba(30,10,10,0.5)', grow: 14 });
+        for (let i = 0; i < 2; i++) fx.add({ x: rand(0, W), y: baseY - rand(0, 80), vx: rand(-10, 10), vy: rand(-120, -40), life: 0.7, size: rand(5, 10), color: pick(['#ff3b1a', '#ff8a1a']), glow: true, grow: -6 });
+        fx.draw(c);
+        silhouette(c, o => drawCharAt(o, f.def, W / 2, baseY - 20, 2.8, 1, { pose: 'victory', anim: t, transformed: true }), '#0a0000');
+        c.globalCompositeOperation = 'lighter';
+        glowCircle(c, W / 2 + 6 * 2.8, baseY - 20 - 101 * 2.8, 26, 'rgba(255,90,20,1)', 'rgba(255,0,0,0)');
+        c.globalCompositeOperation = 'source-over';
+        titleSlam(c, 'HELLFIRE BARRAGE', `${opp.def.name} BURIED IN HELLFIRE`, t, 5.1, '#ff4a2a', 100);
+        flashAt(c, t, 4.9, 5.5, '#ffd08a');
+      }
+    },
+  };
+}
+
 const Cutscenes = {
-  transform(f) { return { eric: csEricTransform, kira: csKiraTransform, vex: csVexTransform }[f.id](f); },
-  ult(f, opp) { return { eric: csEricUlt, kira: csKiraUlt, vex: csVexUlt }[f.id](f, opp); },
+  transform(f) { return { eric: csEricTransform, kira: csKiraTransform, vex: csVexTransform, kael: csKaelRevive }[f.id](f); },
+  ult(f, opp) { return { eric: csEricUlt, kira: csKiraUlt, vex: csVexUlt, kael: csKaelUlt }[f.id](f, opp); },
   versus: csVersus,
 };

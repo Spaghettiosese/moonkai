@@ -30,11 +30,24 @@ The meters fill over time, when you land hits and when you take hits.
 | **Transformed moves** | Seismic Smash (ground shockwave), Mouth Beam (melts buildings) | Feather Storm (3-way fire spread) | Rift Step (teleports behind you and slashes) |
 | **Ultimate** | **LUNAR CATACLYSM**: a city-wide mouth beam. It also turns him into the ape if he isn't already | **SUPERNOVA REBIRTH**: she becomes a sun, dives down as a phoenix and rises from the ashes with +25 HP | **EVENT HORIZON**: opens a black hole that rips buildings out of the ground and swallows the enemy |
 
+### Kael — *The Hollow Core* (Anti-hero)
+
+- **Special:** Core Pulse, a cyan energy shot. In demon form it becomes the Hellfire Orb, an arcing fireball that explodes.
+- **Transformation (CORE SHATTER):** there's no button for it. The first time Kael is knocked out, the core in his chest shatters and he **revives** as a permanent demon with 60 HP.
+- **Ultimate (HELLFIRE BARRAGE):** stays **locked until he revives**. Portals open across the sky and rain hellfire meteors on the city.
+
+## Training mode
+
+On the character select screen, press **T** (or tap the MODE button) to switch between Versus and Training. In Training:
+- the dummy can't be knocked out
+- your meters refill fast
+- **R** resets the fight, **X** does 25 damage to yourself (handy for triggering Kael's revive), **C** toggles whether the dummy fights back, **B** toggles dummy blocking
+
 ## Cutscenes
 
 - A **VS intro** before every fight
-- **3 transformation cutscenes**, one per character, for example Eric's orb → fake moon → eye close-up → growing silhouette
-- **3 ultimate cutscenes**, one per character, each with several shots, a title card and an aftermath shot
+- **4 transformation cutscenes**, one per character (Kael's is his revive), for example Eric's orb → fake moon → eye close-up → growing silhouette
+- **4 ultimate cutscenes**, one per character, each with several shots, a title card and an aftermath shot
 
 ## The city
 

@@ -27,9 +27,11 @@
     if (Game.cutscene) { tap('Space'); return; }
     if (Game.state === 'title' || Game.state === 'end') { tap('Enter'); return; }
     if (Game.state === 'select') {
-      const cw = 250, gap = 30, x0 = W / 2 - (cw * 3 + gap * 2) / 2;
+      const mb = Game.modeBtn;
+      if (x > mb.x && x < mb.x + mb.w && y > mb.y && y < mb.y + mb.h + 16) { Game.toggleMode(); return; }
+      const { cw, gap, x0 } = Game.cardLayout();
       const i = Math.floor((x - x0) / (cw + gap));
-      if (y > 90 && y < 450 && i >= 0 && i < 3 && (x - x0) % (cw + gap) < cw) {
+      if (y > 90 && y < 450 && i >= 0 && i < CHARACTERS.length && (x - x0) % (cw + gap) < cw) {
         if (Game.sel === i) tap('Enter'); else Game.sel = i;
       }
     }

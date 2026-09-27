@@ -41,8 +41,9 @@ class Fighter {
     // meters
     if (!this.transformed) this.energy = Math.min(100, this.energy + dt * 3.2);
     this.ult = Math.min(100, this.ult + dt * 1.6);
+    if (this.def.reviveForm) { this.energy = 0; if (!this.transformed) this.ult = Math.min(this.ult, 99); }
     if (this.transformed) {
-      this.formT -= dt;
+      if (!this.def.reviveForm) this.formT -= dt;
       if (this.id === 'kira') this.hp = Math.min(this.maxHp, this.hp + dt * 1.2);
       this.formFx(dt);
       if (this.formT <= 0) this.revert();
@@ -50,7 +51,7 @@ class Fighter {
 
     // big moves
     if (ctl.ult && this.ult >= 100 && !this.act) { Game.triggerUlt(this, opp); return; }
-    if (ctl.transform && this.energy >= 100 && !this.transformed && !this.act) { Game.triggerTransform(this); return; }
+    if (ctl.transform && !this.def.reviveForm && this.energy >= 100 && !this.transformed && !this.act) { Game.triggerTransform(this); return; }
 
     // actions
     if (this.act) this.runAct(dt, opp);
@@ -107,6 +108,8 @@ class Fighter {
       fx.add({ x: cx + rand(-20, 20), y: cy + rand(-30, 40), vx: rand(-30, 30), vy: rand(-120, -40), life: rand(0.3, 0.7), size: rand(4, 9), color: pick(['#ffcc33', '#ff7a1a', '#ff3b1a']), glow: true, grow: -8 });
     if (this.id === 'vex' && Math.random() < dt * 30)
       fx.add({ x: cx + rand(-30, 30), y: cy + rand(-60, 60), vx: rand(-20, 20), vy: rand(-60, -10), life: rand(0.5, 1), size: rand(6, 12), color: pick(['rgba(40,0,60,0.7)', 'rgba(120,50,200,0.5)']), grow: 6 });
+    if (this.id === 'kael' && Math.random() < dt * 35)
+      fx.add({ x: cx + rand(-22, 22), y: cy + rand(-40, 50), vx: rand(-20, 20), vy: rand(-140, -60), life: rand(0.3, 0.6), size: rand(4, 9), color: pick(['#ff3b1a', '#ff8a1a', '#7a0000']), glow: true, grow: -8 });
     if (this.id === 'eric' && Math.random() < dt * 6)
       fx.add({ x: this.x + rand(-40, 40), y: this.y - rand(0, this.h), vx: rand(-10, 10), vy: rand(-30, -10), life: 0.8, size: 3, color: '#fff3b0', glow: true });
   }
@@ -146,6 +149,14 @@ class Fighter {
         Game.projectiles.push({ x: hx, y: hy, vx: Math.cos(a) * 900 * f.facing, vy: Math.sin(a) * 900, r: 10, dmg: 5.5, owner: f, color: '#ff9a1a', core: '#fffbd0', life: 1.4, kind: 'fire' });
       }
       Sfx.fire(); Sfx.screech();
+    } else if (id === 'kael' && !T) {
+      f.act = { type: 'cast', t: 0, dur: 0.28, pose: 'cast' }; f.spCd = 0.55;
+      Game.projectiles.push({ x: hx, y: hy, vx: 820 * f.facing, vy: 0, r: 10, dmg: 7, owner: f, color: '#3fe0ff', core: '#fff', life: 1.6, kind: 'ki' });
+      Sfx.blast();
+    } else if (id === 'kael' && T) {
+      f.act = { type: 'cast', t: 0, dur: 0.35, pose: 'cast' }; f.spCd = 0.9;
+      Game.projectiles.push({ x: hx, y: hy, vx: 600 * f.facing, vy: -260, g: 900, r: 16, dmg: 12, owner: f, color: '#ff3b1a', core: '#ffd08a', life: 2, kind: 'hellorb' });
+      Sfx.fire();
     } else if (id === 'vex' && !T) {
       f.act = { type: 'cast', t: 0, dur: 0.35, pose: 'cast' }; f.spCd = 1.3;
       Game.hazards.push({ kind: 'spike', x: opp.x, t: 0, delay: 0.5, active: 0.3, owner: f, done: false });
