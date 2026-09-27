@@ -291,6 +291,23 @@ function moveTo(p) {
     for (let x = 0; x < w; x++) { const sx = x - dx; if (sx >= 0 && sx < w) dst[y * w + x] = src[sy * w + sx]; }
   }
 }
+const TAU = Math.PI * 2;
+function shiftCel(src, dx, dy) {
+  const w = doc.w, h = doc.h, out = new Uint8ClampedArray(src.length), s = new Uint32Array(src.buffer), d = new Uint32Array(out.buffer);
+  for (let y = 0; y < h; y++) { const sy = y - dy; if (sy < 0 || sy >= h) continue;
+    for (let x = 0; x < w; x++) { const sx = x - dx; if (sx >= 0 && sx < w) d[y * w + x] = s[sy * w + sx]; } }
+  return out;
+}
+// Breathing: the top half of the art sinks 1px while the bottom stays planted.
+function breathe(src, on) {
+  if (!on) return src.slice();
+  const w = doc.w, h = doc.h, s = new Uint32Array(src.buffer);
+  let top = h, bot = 0;
+  for (let i = 0; i < s.length; i++) if (s[i]) { const y = i / w | 0; if (y < top) top = y; if (y > bot) bot = y; }
+  const mid = Math.round((top + bot) / 2), out = new Uint8ClampedArray(src.length), d = new Uint32Array(out.buffer);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) d[y * w + x] = y > mid ? s[y * w + x] : y >= 1 ? s[(y - 1) * w + x] : 0;
+  return out;
+}
 function pickColor(p, secondary) {
   if (p.x < 0 || p.y < 0 || p.x >= doc.w || p.y >= doc.h) return;
   compose(cur.frame);
@@ -963,6 +980,32 @@ const act = {
     for (let y = 0; y < doc.h; y++) u.set(src.subarray((doc.h - 1 - y) * doc.w, (doc.h - y) * doc.w), y * doc.w);
   })),
   fxClear: () => structural(() => cel().fill(0)),
+  celToAll: () => doc.frames > 1 ? structural(() => { const c = cel(); layer().cels = layer().cels.map(() => c.slice()); }) : toast('Only one frame'),
+  motion() {
+    const kind = $('#motionSel').value, n = clamp(+$('#motionFrames').value || 8, 2, 48), scope = $('#motionScope').value;
+    const offset = i => {
+      const t = i / n, s = Math.sin(TAU * t);
+      if (kind === 'float') return [0, Math.round(s * 2)];
+      if (kind === 'bob') return [0, s > .5 ? 1 : 0];
+      if (kind === 'hop') return [0, -Math.round(Math.abs(Math.sin(Math.PI * t)) * 4)];
+      if (kind === 'sway') return [Math.round(s * 1.5), 0];
+      if (kind === 'shake') return [[1, 0], [-1, 1], [0, -1], [-1, 0], [1, 1], [0, 0]][i % 6];
+      return [0, 0];
+    };
+    structural(() => {
+      const f0 = cur.frame;
+      doc.layers.forEach((L, li) => {
+        const src = L.cels[f0], moves = scope === 'all' || (scope === 'layer' ? li === cur.layer : li > 0);
+        L.cels = Array.from({ length: n }, (_, i) => {
+          if (!moves) return src.slice();
+          if (kind === 'breathe') return breathe(src, Math.sin(TAU * i / n) > .3);
+          const [dx, dy] = offset(i); return shiftCel(src, dx, dy);
+        });
+      });
+      doc.frames = n; cur.frame = 0;
+    });
+    toast(`Made a ${n}-frame ${kind} loop. Press Enter to play`);
+  },
   frameAdd: () => structural(() => { for (const L of doc.layers) L.cels.splice(cur.frame + 1, 0, blank()); doc.frames++; cur.frame++; }),
   frameDup: () => structural(() => { for (const L of doc.layers) L.cels.splice(cur.frame + 1, 0, L.cels[cur.frame].slice()); doc.frames++; cur.frame++; }),
   frameDel: () => doc.frames > 1 ? structural(() => { for (const L of doc.layers) L.cels.splice(cur.frame, 1); doc.frames--; }) : toast('Need at least one frame'),
@@ -972,7 +1015,12 @@ const act = {
     if (ui.playing) { clearTimeout(ui.playing); ui.playing = null; $('#playBtn').textContent = '▶'; renderLayers(); return; }
     if (doc.frames < 2) return toast('Add frames to animate');
     $('#playBtn').textContent = '❚❚';
-    const tick = () => { ui.playing = setTimeout(tick, 1000 / doc.fps); gotoFrame(cur.frame + 1); };
+    let step = 1;
+    const tick = () => {
+      ui.playing = setTimeout(tick, 1000 / doc.fps);
+      if ($('#playMode').value === 'pingpong' && (cur.frame + step >= doc.frames || cur.frame + step < 0)) step = -step;
+      gotoFrame(cur.frame + step);
+    };
     ui.playing = setTimeout(tick, 1000 / doc.fps);
   },
 };

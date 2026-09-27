@@ -14,6 +14,7 @@
     <button data-act="open" title="Open project (.pxs.json)">Open</button>
     <button data-act="save" title="Save project (Ctrl+S)">Save</button>
     <button data-act="export" title="Export PNG / sprite sheet / GIF (Ctrl+E)">Export</button>
+    <button data-act="character" class="primary" title="Build an animated full-body character">Character</button>
     <button data-act="import" title="Import an image as a new layer">Import</button>
     <button data-act="ref" title="Load a reference image overlay">Reference</button>
   </div>
@@ -127,6 +128,18 @@
     <button data-act="frameLeft" title="Move frame left">◀</button>
     <button data-act="frameRight" title="Move frame right">▶</button>
     <button data-act="frameDel" title="Delete frame">Del</button>
+    <select id="playMode" title="Playback"><option value="loop">Loop</option><option value="pingpong">Ping-pong</option></select>
+    <button data-act="celToAll" title="Copy this layer's current frame into every frame (for backgrounds and props that stay still)">Hold on all</button>
+    <span class="sep"></span>
+    <select id="motionSel" title="Motion preset">
+      <option value="float">Float</option><option value="bob">Bob</option><option value="hop">Hop</option>
+      <option value="sway">Sway</option><option value="shake">Shake</option><option value="breathe">Breathe</option>
+    </select>
+    <input type="number" id="motionFrames" min="2" max="48" value="8" title="Frames">
+    <select id="motionScope" title="What moves">
+      <option value="above">All but bottom layer</option><option value="layer">Active layer</option><option value="all">All layers</option>
+    </select>
+    <button data-act="motion" title="Turn the current frame into a looping animation">Animate</button>
   </div>
   <div id="frames"></div>
 </footer>
@@ -228,6 +241,30 @@
   </form>
 </dialog>
 
+<dialog id="charDlg">
+  <form method="dialog">
+    <h2>Character builder</h2>
+    <p class="hint">Pick a preset, customize it, and choose an animation. Each frame is drawn as crisp, outlined, cel-shaded pixel art.</p>
+    <div id="chPresets" class="chips"></div>
+    <div class="charGrid">
+      <div class="charPrev">
+        <canvas id="chPrev" width="102" height="128"></canvas>
+        <label class="opt"><span>Animation</span><select id="ch_anim">
+          <option value="idle">Idle</option><option value="walk">Walk</option><option value="run">Run</option><option value="jump">Jump</option>
+          <option value="attack">Attack</option><option value="hover">Hover / fly</option><option value="all">All (sprite set)</option>
+        </select></label>
+        <p class="hint" id="chInfo"></p>
+      </div>
+      <div id="chOpts" class="charOpts"></div>
+    </div>
+    <menu>
+      <button type="button" id="chRandom">Randomize</button>
+      <label class="opt chk appendChk"><input type="checkbox" id="chAppend"><span>Add frames to current canvas</span></label>
+      <button value="cancel">Cancel</button><button value="ok" class="primary">Create</button>
+    </menu>
+  </form>
+</dialog>
+
 <input type="file" id="fileProject" accept=".json,application/json" hidden>
 <input type="file" id="fileImage" accept="image/*" hidden>
 <input type="file" id="fileRef" accept="image/*" hidden>
@@ -235,5 +272,6 @@
 <script src="palettes.js"></script>
 <script src="gif.js"></script>
 <script src="app.js"></script>
+<script src="character.js"></script>
 </body>
 </html>
