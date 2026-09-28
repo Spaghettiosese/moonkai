@@ -79,3 +79,7 @@ js/ai.js          CPU opponents with 4 difficulty levels
 js/game.js        menus, modes, rounds, combat resolution, HUD, arcade, endings, main loop
 js/touch.js       on-screen touch controls and tap navigation
 ```
+
+## Pixel Studio
+
+The `pixel/` folder holds **Moonkai Pixel Studio**, a pixel art and animation editor for anime-style art. Open `pixel/index.html` to use it. See [pixel/README.md](pixel/README.md) for details. In the game, Aatrox, Kael, Seraph, Sion, Razor and Volibear (and their portraits) are drawn live in the Pixel Studio style (turn it off with **Settings → Pixel Art Fighters**), with smooth pose blending and kick trails. The shared renderer is `js/pixel_fighter.js`, with the fighters in `js/aatrox_pixel.js` and `js/pixel_roster.js`.

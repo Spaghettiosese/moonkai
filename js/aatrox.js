@@ -158,7 +158,7 @@ function drawAatrox(c, v) {
 }
 
 // Portrait: a demon, not a person. Horned skull-helm, burning slits, fanged maw.
-function drawAatroxPortrait(c, opts = {}) {
+function drawAatroxPortraitVector(c, opts = {}) {
   const D = !!opts.form;
   const g = c.createRadialGradient(50, 58, 4, 50, 58, 78); g.addColorStop(0, D ? '#8a0c12' : '#4e0a0e'); g.addColorStop(1, '#070001'); c.fillStyle = g; c.fillRect(0, 0, 100, 100);
   if (D) { // wings behind
@@ -310,7 +310,7 @@ const aatrox = fighter({
   quote: 'I am not the darkness. I am what it fears.',
   ending: 'Aatrox finds no war worthy of him in Metro City. He sits on a rooftop, the eye of his sword watching the streets, waiting. The city sleeps nervously for a very long time.',
   hp: 1080, walk: 235, jumps: 2, scale: 1.15, deity: true, rival: 'aurelion', handArt: true,
-  draw: drawAatrox, drawPortrait: drawAatroxPortrait, transformCutscene: f => csAatroxWorldEnder(f),
+  draw: drawAatroxPixel, drawPortrait: drawAatroxPixelPortrait, transformCutscene: f => csAatroxWorldEnder(f),
   model: { skin: '#5a1418' }, face: { expr: 'angry' },
   style: { reach: 1.35, weapon: true, speed: 1.12, power: 1.1, heavy: true, poses: { '5M': 'heavy', '5H': 'slam' } },
   passive: ['Deathbringer Stance', 'The sword\'s eye opens every few seconds: his next hit rends 3.5% of the foe\'s max HP and heals him. Sweet spots charge it faster.'],

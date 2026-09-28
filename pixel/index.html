@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en" data-ui="midnight">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moonkai Pixel Studio</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="top">
+  <div class="brand">☾ Moonkai <b>Pixel Studio</b></div>
+  <div class="group">
+    <button data-act="new" title="New canvas (Ctrl+N)">New</button>
+    <button data-act="open" title="Open project (.pxs.json)">Open</button>
+    <button data-act="save" title="Save project (Ctrl+S)">Save</button>
+    <button data-act="export" title="Export PNG / sprite sheet / GIF (Ctrl+E)">Export</button>
+    <button data-act="character" class="primary" title="Build an animated full-body character">Character</button>
+    <button data-act="import" title="Import an image as a new layer">Import</button>
+    <button data-act="ref" title="Load a reference image overlay">Reference</button>
+  </div>
+  <div class="group">
+    <button data-act="undo" title="Undo (Ctrl+Z)">↶</button>
+    <button data-act="redo" title="Redo (Ctrl+Y)">↷</button>
+  </div>
+  <div class="group toggles">
+    <button data-toggle="grid" title="Pixel grid (Q)">Grid</button>
+    <button data-toggle="smooth" title="Smooth view: Scale4x upscaling so art looks less blocky">Smooth</button>
+    <button data-toggle="onion" title="Onion skin (previous / next frame)">Onion</button>
+    <button data-toggle="symX" title="Mirror drawing left ↔ right">Mirror X</button>
+    <button data-toggle="symY" title="Mirror drawing top ↕ bottom">Mirror Y</button>
+    <button data-toggle="refShow" title="Show reference image">Ref</button>
+    <input id="refOpacity" type="range" min="5" max="100" value="35" title="Reference opacity">
+  </div>
+  <div class="group">
+    <button data-act="zoomOut" title="Zoom out (-)">−</button>
+    <button data-act="fit" title="Fit to screen (0)" id="zoomLabel">100%</button>
+    <button data-act="zoomIn" title="Zoom in (+)">+</button>
+  </div>
+  <div class="group right">
+    <select id="themeSel" title="UI theme">
+      <option value="midnight">Midnight</option>
+      <option value="sakura">Sakura</option>
+      <option value="mono">Mono</option>
+    </select>
+    <button data-act="help" title="Shortcuts">?</button>
+  </div>
+</header>
+
+<nav id="tools"></nav>
+
+<main id="stage">
+  <canvas id="view"></canvas>
+  <div id="status"></div>
+  <div id="toast"></div>
+</main>
+
+<aside id="panel">
+  <section>
+    <h3>Colour</h3>
+    <div class="colors">
+      <div class="swatches">
+        <button id="secondary" class="sw" title="Secondary colour (right click)"></button>
+        <button id="primary" class="sw" title="Primary colour (left click)"></button>
+        <button id="swap" title="Swap (X)">⇄</button>
+      </div>
+      <div class="sliders">
+        <label>H <input type="range" id="cH" min="0" max="360"></label>
+        <label>S <input type="range" id="cS" min="0" max="100"></label>
+        <label>L <input type="range" id="cL" min="0" max="100"></label>
+        <label>A <input type="range" id="cA" min="0" max="255"></label>
+        <div class="row"><input id="hex" spellcheck="false" maxlength="9"><input type="color" id="native"></div>
+      </div>
+    </div>
+    <div id="recent" class="pal small"></div>
+  </section>
+
+  <section>
+    <h3>Palette
+      <select id="palSel"></select>
+    </h3>
+    <div id="palette" class="pal"></div>
+    <div class="btns">
+      <button data-act="palAdd" title="Add primary colour to palette">+ Add</button>
+      <button data-act="palRamp" title="Generate a hue-shifted anime shading ramp from the primary colour">Ramp</button>
+      <button data-act="palExtract" title="Build a palette from the colours in your art">Extract</button>
+      <button data-act="palSave" title="Save this palette under a name">Save</button>
+      <button data-act="palDelete" title="Delete saved palette">Del</button>
+    </div>
+    <p class="hint">Click = primary · right click = secondary · Alt+click = remove</p>
+  </section>
+
+  <section>
+    <h3>Brush presets</h3>
+    <div id="brushPresets" class="chips"></div>
+    <h3 id="toolName">Tool</h3>
+    <div id="toolOpts"></div>
+  </section>
+
+  <section class="grow">
+    <h3>Layers</h3>
+    <div id="layers"></div>
+    <div class="btns">
+      <button data-act="layerAdd" title="New layer">+ New</button>
+      <button data-act="layerDup" title="Duplicate layer">Dup</button>
+      <button data-act="layerUp" title="Move up">▲</button>
+      <button data-act="layerDown" title="Move down">▼</button>
+      <button data-act="layerMerge" title="Merge down">Merge</button>
+      <button data-act="layerDel" title="Delete layer">Del</button>
+    </div>
+    <label class="opt">Opacity <input type="range" id="layerOpacity" min="0" max="100"> <span id="layerOpacityV"></span></label>
+    <label class="opt chk"><input type="checkbox" id="layerGuide"> Guide layer (hidden in export)</label>
+    <h3>Effects</h3>
+    <div class="btns">
+      <button data-act="fxOutline" title="Add an outline in the primary colour around the layer's art">Outline</button>
+      <button data-act="fxFlipH">Flip ↔</button>
+      <button data-act="fxFlipV">Flip ↕</button>
+      <button data-act="fxClear">Clear</button>
+    </div>
+  </section>
+</aside>
+
+<footer id="timeline">
+  <div class="tctl">
+    <button data-act="play" id="playBtn" title="Play / pause (Enter)">▶</button>
+    <label>FPS <input type="number" id="fps" min="1" max="60"></label>
+    <button data-act="frameAdd" title="New blank frame">+ Frame</button>
+    <button data-act="frameDup" title="Duplicate frame">Dup</button>
+    <button data-act="frameLeft" title="Move frame left">◀</button>
+    <button data-act="frameRight" title="Move frame right">▶</button>
+    <button data-act="frameDel" title="Delete frame">Del</button>
+    <select id="playMode" title="Playback"><option value="loop">Loop</option><option value="pingpong">Ping-pong</option></select>
+    <button data-act="celToAll" title="Copy this layer's current frame into every frame (for backgrounds and props that stay still)">Hold on all</button>
+    <span class="sep"></span>
+    <select id="motionSel" title="Motion preset">
+      <option value="float">Float</option><option value="bob">Bob</option><option value="hop">Hop</option>
+      <option value="sway">Sway</option><option value="shake">Shake</option><option value="breathe">Breathe</option>
+    </select>
+    <input type="number" id="motionFrames" min="2" max="48" value="8" title="Frames">
+    <select id="motionScope" title="What moves">
+      <option value="above">All but bottom layer</option><option value="layer">Active layer</option><option value="all">All layers</option>
+    </select>
+    <button data-act="motion" title="Turn the current frame into a looping animation">Animate</button>
+  </div>
+  <div id="frames"></div>
+</footer>
+
+<dialog id="newDlg">
+  <form method="dialog">
+    <h2>New canvas</h2>
+    <p class="hint">Bigger canvases give smoother, more detailed anime art. 128 or more is a good start.</p>
+    <div id="sizePresets" class="chips"></div>
+    <div class="row">
+      <label>Width <input type="number" id="nW" min="4" max="512" value="128"></label>
+      <label>Height <input type="number" id="nH" min="4" max="512" value="128"></label>
+    </div>
+    <label>Anime guide
+      <select id="nTpl">
+        <option value="none">None</option>
+        <option value="face">Anime face (front)</option>
+        <option value="face34">Anime face (3/4 view)</option>
+        <option value="chibi">Chibi (2 heads tall)</option>
+        <option value="body">Full body (8 heads tall)</option>
+        <option value="eye">Big anime eye study</option>
+      </select>
+    </label>
+    <label>Layer setup
+      <select id="nLayers">
+        <option value="anime">Anime workflow (Background, Flats, Shading, Highlights, Line Art)</option>
+        <option value="simple">Single layer</option>
+      </select>
+    </label>
+    <label>Background
+      <select id="nBg">
+        <option value="none">Transparent</option>
+        <option value="#ffffff">White</option>
+        <option value="#fdf3e7">Paper</option>
+        <option value="#1b1726">Night</option>
+        <option value="#cfe8ff">Sky</option>
+      </select>
+    </label>
+    <menu><button value="cancel">Cancel</button><button value="ok" class="primary">Create</button></menu>
+  </form>
+</dialog>
+
+<dialog id="exportDlg">
+  <form method="dialog">
+    <h2>Export</h2>
+    <label>Format
+      <select id="xType">
+        <option value="png">PNG (current frame)</option>
+        <option value="sheet">Sprite sheet PNG (all frames)</option>
+        <option value="gif">Animated GIF</option>
+      </select>
+    </label>
+    <label>Scale
+      <select id="xScale">
+        <option>1</option><option>2</option><option selected>4</option><option>8</option><option>16</option>
+      </select>
+    </label>
+    <label>Upscale filter
+      <select id="xFilter">
+        <option value="nearest">Nearest (sharp pixels)</option>
+        <option value="smooth">Scale2x (smooth edges, less blocky)</option>
+      </select>
+    </label>
+    <label>Sheet columns (0 = one row) <input type="number" id="xCols" min="0" max="64" value="0"></label>
+    <menu><button value="cancel">Cancel</button><button value="ok" class="primary">Export</button></menu>
+  </form>
+</dialog>
+
+<dialog id="helpDlg">
+  <form method="dialog">
+    <h2>Shortcuts</h2>
+    <div class="keys">
+      <span>B</span>Pencil <span>E</span>Eraser <span>G</span>Fill <span>L</span>Line
+      <span>R</span>Rectangle <span>O</span>Ellipse <span>I</span>Colour picker <span>D</span>Shade (right click darkens)
+      <span>T</span>Dither <span>A</span>Spray <span>M</span>Move layer <span>H / Space</span>Pan
+      <span>[ ]</span>Brush size <span>X</span>Swap colours <span>Q</span>Grid <span>Alt+click</span>Pick colour
+      <span>Shift</span>Straight / square shapes <span>, .</span>Prev / next frame <span>Enter</span>Play
+      <span>0</span>Fit <span>+ −</span>Zoom <span>Ctrl+Z / Y</span>Undo / redo <span>Ctrl+S</span>Save
+    </div>
+    <p class="hint">Anime tips: sketch on the Guide layer, lay flat colours on Flats, use the Shade tool with hue-shift on Shading, and add a crisp 1px pixel-perfect outline on Line Art. Turn on Smooth to preview a softer look, and export with Scale2x for smooth edges.</p>
+    <menu><button value="ok" class="primary">Close</button></menu>
+  </form>
+</dialog>
+
+<dialog id="askDlg">
+  <form method="dialog">
+    <h2 id="askTitle"></h2>
+    <p id="askText" class="hint"></p>
+    <input id="askInput" spellcheck="false">
+    <menu><button value="cancel" id="askCancel">Cancel</button><button value="ok" id="askOk" class="primary">OK</button></menu>
+  </form>
+</dialog>
+
+<dialog id="resultDlg">
+  <form method="dialog">
+    <h2 id="resultTitle"></h2>
+    <div id="resultBody"></div>
+    <menu><button type="button" id="resultCopy">Copy text</button><button type="button" id="resultDownload">Download</button><button value="ok" class="primary">Close</button></menu>
+  </form>
+</dialog>
+
+<dialog id="charDlg">
+  <form method="dialog">
+    <h2>Character builder</h2>
+    <p class="hint">Pick a preset, customize it, and choose an animation. Each frame is drawn as crisp, outlined, cel-shaded pixel art.</p>
+    <div id="chPresets" class="chips"></div>
+    <div class="charGrid">
+      <div class="charPrev">
+        <canvas id="chPrev" width="102" height="128"></canvas>
+        <label class="opt"><span>Animation</span><select id="ch_anim">
+          <option value="idle">Idle</option><option value="walk">Walk</option><option value="run">Run</option><option value="jump">Jump</option>
+          <option value="attack">Attack</option><option value="kick">Kick</option><option value="hover">Hover / fly</option><option value="all">All (sprite set)</option>
+        </select></label>
+        <p class="hint" id="chInfo"></p>
+      </div>
+      <div id="chOpts" class="charOpts"></div>
+    </div>
+    <menu>
+      <button type="button" id="chRandom">Randomize</button>
+      <label class="opt chk appendChk"><input type="checkbox" id="chAppend"><span>Add frames to current canvas</span></label>
+      <button value="cancel">Cancel</button><button value="ok" class="primary">Create</button>
+    </menu>
+  </form>
+</dialog>
+
+<input type="file" id="fileProject" accept=".json,application/json" hidden>
+<input type="file" id="fileImage" accept="image/*" hidden>
+<input type="file" id="fileRef" accept="image/*" hidden>
+
+<script src="palettes.js"></script>
+<script src="gif.js"></script>
+<script src="app.js"></script>
+<script src="character.js"></script>
+</body>
+</html>
