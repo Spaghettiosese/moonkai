@@ -397,103 +397,99 @@ function drawClouds(c, t, y, col, n = 9) { c.fillStyle = col; for (let i = 0; i 
 
 // Awakening: Heaven tears open, three pairs of wings unfold, the halo ignites into a sun-crown.
 function csAurelionAscend(f) {
-  const d = f.def, fx = new ParticleSystem(1600);
+  const d = f.def, fx = new ParticleSystem(1800), v = {};
   return {
-    name: 'SERAPHIM ASCENDANT', dur: 4.6, fx,
-    cues: [[0, () => aurSfx('bell')], [1.2, () => { aurSfx('charge', 1); }], [2.3, () => { aurSfx('bell'); aurSfx('boom'); }], [3.2, () => aurSfx('blast')]],
+    name: 'SERAPHIM ASCENDANT', dur: 5.2, fx,
+    cues: [[0, () => aurSfx('bell')], [1.4, () => { aurSfx('charge', 1); }], [2.5, () => { aurSfx('bell'); aurSfx('boom'); }], [3.3, () => aurSfx('blast')]],
     draw(c, t) {
-      aurSkyGold(c, 0.25 + 0.75 * seg(t, 0.8, 2.4));
+      // one shot: he kneels in a shaft of light, rises as three pairs of wings unfold, and the halo ignites into a sun-crown
+      aurSkyGold(c, 0.25 + 0.75 * ease.inOut(seg(t, 0.8, 2.6)));
       const tear = ease.out(seg(t, 0.2, 1.4));
       c.save(); c.globalCompositeOperation = 'lighter'; c.fillStyle = 'rgba(255,255,230,0.9)';
       c.beginPath(); c.moveTo(W / 2, 0); c.lineTo(W / 2 - 60 * tear, H * 0.35 * tear); c.lineTo(W / 2, H * 0.55 * tear); c.lineTo(W / 2 + 60 * tear, H * 0.35 * tear); c.fill(); c.restore();
       aurRays(c, W / 2, H * 0.3, t, 18, '#fff4c8', 0.35 * tear);
       drawClouds(c, t, H - 90, 'rgba(255,250,235,0.85)');
       for (let i = 0; i < 3; i++) fx.add({ x: rand(0, W), y: -10, vx: rand(-20, 20), vy: rand(120, 260), life: 3, size: rand(3, 6), color: pick(['#fff', '#ffe9a0']), glow: true });
+      if (t > 2.5 && t < 2.6) fx.burst(W / 2, H * 0.4, 50, { color: ['#fff', '#ffe9a0', '#ffd35a'], size: 9, speed: 700, glow: true, life: 1 });
       fx.draw(c);
-      const pairs = Math.min(3, Math.floor(seg(t, 1.4, 2.4) * 3.99));
-      const v = { pose: t < 1.4 ? 'kneel' : t < 2.3 ? 'charge' : 'victory', anim: t, transformed: pairs >= 3 || t > 2.3 };
-      c.save(); c.globalAlpha = 1; drawCharAt(c, d, W / 2, H - 40 - 60 * seg(t, 1.4, 2.6), 2.6, 1, v); c.restore();
-      caption(c, 'Heaven was a draft. I am the final edition.', t, 0.1, 1.35, '#fff6d0');
-      if (t > 1.4 && t < 2.3) bigText(c, ['I', 'II', 'III'][Math.max(0, pairs - 1)] || 'I', W / 2, 120, 90, '#fff', '#8a6a20');
-      flashAt(c, t, 2.3, 2.6, '#fffbe8');
-      titleSlam(c, 'SERAPHIM ASCENDANT', 'I AM THE LIGHT YOU PRAY TO', t, 2.5, '#ffd35a', 84);
+      const pairs = t < 1.5 ? 0 : t < 1.85 ? 1 : t < 2.2 ? 2 : 3;
+      const y = H - 40 - 70 * ease.inOut(seg(t, 1.4, 2.7)) - 50 * ease.out(seg(t, 2.5, 3.6));
+      cineChar(c, d, v, W / 2, y, lerp(2.5, 2.9, ease.inOut(seg(t, 0, 3))), t, t < 1.4 ? 'kneel' : t < 2.5 ? 'charge' : 'victory', { pairs, transformed: t > 2.5 });
+      caption(c, 'Heaven was a draft. I am the final edition.', t, 0.1, 1.4, '#fff6d0');
+      if (t > 1.5 && t < 2.5) bigText(c, ['I', 'II', 'III'][Math.max(0, pairs - 1)], W / 2, 120, 90, '#fff', '#8a6a20');
+      flashAt(c, t, 2.5, 2.85, '#fffbe8');
+      titleSlam(c, 'SERAPHIM ASCENDANT', 'I AM THE LIGHT YOU PRAY TO', t, 2.9, '#ffd35a', 84);
     },
   };
 }
 
 // Ultimate: the foe is forced to kneel before a colossal throne; a thousand swords fall.
 function csAurelionThrone(a, opp) {
-  const fx = new ParticleSystem(2600), d = a.def;
-  const oppScale = opp.transformed && opp.def.id === 'eric' ? 0.55 : 1.3;
-  const swords = Array.from({ length: 70 }, (_, i) => ({ x: rand(60, W - 60), y: rand(-600, -80), at: 3.2 + i * 0.012, len: rand(90, 160) }));
+  const fx = new ParticleSystem(2600), d = a.def, v = {}, gy = H - 70, ax = W * 0.3;
+  const swords = Array.from({ length: 70 }, (_, i) => ({ x: rand(60, W - 60), y: rand(-560, -60), at: 3.3 + i * 0.011, len: rand(90, 160), hit: false }));
   return {
     name: 'THRONE OF HEAVEN', dur: 7.2, fx,
-    cues: [[0, () => aurSfx('bell')], [1.1, () => aurSfx('slam')], [2.3, () => aurSfx('bell')], [3.2, () => aurSfx('charge', 1)], [4.1, () => { aurSfx('boom'); aurSfx('boom', 0.2); aurSfx('clang'); }]],
+    cues: [[0, () => aurSfx('bell')], [1.1, () => aurSfx('slam')], [2.3, () => aurSfx('bell')], [3.3, () => aurSfx('charge', 1)], [4.2, () => { aurSfx('boom'); aurSfx('boom', 0.2); aurSfx('clang'); }]],
     draw(c, t) {
-      aurSkyGold(c, 0.85);
-      aurRays(c, W / 2, 120, t, 22, '#fff8d8', 0.35);
-      drawClouds(c, t * 0.5, H - 80, 'rgba(255,250,235,0.95)', 10);
-      // the throne
+      // Aurelion commands the sky: he raises his blade, a thousand swords gather, and they fall to judge the ground before him
+      const after = t >= 4.2;
+      c.save(); cineShake(c, after ? Math.max(0, 16 - (t - 4.2) * 18) : 0);
+      aurSkyGold(c, 0.85); aurRays(c, W / 2, 120, t, 22, '#fff8d8', 0.35 + (after ? 0.25 : 0)); drawClouds(c, t * 0.5, H - 80, 'rgba(255,250,235,0.95)', 10);
       const tk = ease.out(seg(t, 0.2, 1.2));
-      c.save(); c.translate(W / 2, H - 110); c.scale(tk, tk);
+      c.save(); c.translate(W * 0.68, gy + 10); c.scale(tk, tk);
       c.fillStyle = '#f4ecd6'; c.strokeStyle = '#b8903a'; c.lineWidth = 4;
       c.beginPath(); c.moveTo(-170, 0); c.lineTo(-150, -330); c.lineTo(-90, -420); c.lineTo(0, -470); c.lineTo(90, -420); c.lineTo(150, -330); c.lineTo(170, 0); c.closePath(); c.fill(); c.stroke();
       c.fillStyle = '#e6d8b0'; c.fillRect(-200, -60, 400, 60); c.strokeRect(-200, -60, 400, 60);
       c.globalCompositeOperation = 'lighter'; glowCircle(c, 0, -330, 120, 'rgba(255,240,180,0.8)', 'rgba(0,0,0,0)'); c.restore();
-      if (t < 3.2) {
-        drawCharAt(c, d, W / 2, H - 170, 1.9, 1, { pose: t < 2.3 ? 'intro' : 'victory', anim: t, transformed: true });
-        silhouette(c, o => drawCharAt(o, opp.def, W * 0.5, H - 20, oppScale * 1.3, -1, { pose: t > 1.1 ? 'kneel' : 'hurt', anim: t, transformed: opp.transformed }), '#3a2a10');
-        if (t > 1.1 && t < 2.3) { c.globalAlpha = seg(t, 1.1, 1.3); bigText(c, 'KNEEL.', W / 2, 150, 120, '#fff', '#8a6a20'); c.globalAlpha = 1; }
-        caption(c, 'You stand in the presence of a god.', t, 0.1, 1.05, '#fff6d0');
-        if (t > 2.3) { const k = seg(t, 2.3, 3.2); for (const s of swords) { c.globalAlpha = k; drawHolyBlade(c, s.x, s.y + 120, s.len, Math.PI / 2, t, { glow: 0.8 }); } c.globalAlpha = 1; caption(c, 'Be judged.', t, 2.35, 3.15, '#fff6d0'); }
-      } else if (t < 4.6) {
-        silhouette(c, o => drawCharAt(o, opp.def, W * 0.5, H - 20, oppScale * 1.3, -1, { pose: 'kneel', anim: t, transformed: opp.transformed }), '#3a2a10');
-        for (const s of swords) { const p = seg(t, s.at, s.at + 0.35); if (p <= 0) { drawHolyBlade(c, s.x, s.y + 120, s.len, Math.PI / 2, t, { glow: 0.8 }); continue; }
-          const tx = lerp(s.x, W / 2 + (s.x - W / 2) * 0.15, p), ty = lerp(s.y + 120, H - 120, p * p);
-          drawHolyBlade(c, tx, ty, s.len, Math.PI / 2 + (tx - s.x) * 0.0006, t, { glow: 1 });
-          if (p >= 1 && !s.hit) { s.hit = true; fx.burst(tx, H - 90, 8, { color: ['#fff', '#ffe9a0'], size: 7, speed: 300, glow: true, life: 0.4 }); } }
-        fx.draw(c);
-        flashAt(c, t, 4.1, 4.5, '#fffbe8');
-      } else {
-        aurRays(c, W / 2, H - 120, t, 30, '#fff', 0.5);
-        for (let i = 0; i < 40; i++) { const x = W / 2 + (i - 20) * 16, h = 60 + ((i * 37) % 70); drawHolyBlade(c, x, H - 60 - h, h + 40, Math.PI / 2 + (i - 20) * 0.02, t, { glow: 0.6, w: 0.8 }); }
-        drawCharAt(c, d, W / 2, H - 170, 2.1, 1, { pose: 'intro', anim: t, transformed: true });
-        titleSlam(c, 'THRONE OF HEAVEN', `${opp.def.name} HAS BEEN JUDGED`, t, 4.8, '#ffd35a', 96);
+      c.fillStyle = '#e6d8b0'; c.fillRect(0, gy, W, H - gy);
+      for (const s of swords) {
+        const p = seg(t, s.at, s.at + 0.4), hang = ease.out(seg(t, 2.3, 3.2));
+        if (p <= 0) { if (hang > 0) { c.globalAlpha = hang; drawHolyBlade(c, s.x, s.y + 120 + Math.sin(t * 3 + s.x) * 4, s.len, Math.PI / 2, t, { glow: 0.8 }); c.globalAlpha = 1; } continue; }
+        const ty = lerp(s.y + 120, gy - s.len * 0.15, p * p);
+        drawHolyBlade(c, s.x, ty, s.len, Math.PI / 2, t, { glow: p >= 1 ? 0.4 : 1 });
+        if (p >= 1 && !s.hit) { s.hit = true; fx.burst(s.x, gy, 6, { color: ['#fff', '#ffe9a0'], size: 7, speed: 300, glow: true, life: 0.4 }); }
       }
+      fx.draw(c);
+      const pose = t < 2.3 ? 'intro' : t < 3.3 ? 'cast_up' : t < 4.4 ? 'slam' : 'victory';
+      cineChar(c, d, v, ax, gy + 14, 2.7, t, pose, { transformed: true });
+      if (after) { const k = seg(t, 4.2, 5.0); c.strokeStyle = `rgba(255,250,220,${1 - k})`; c.lineWidth = 12; c.beginPath(); c.ellipse(W / 2, gy + 6, k * 1200 + 1, k * 100 + 1, 0, 0, Math.PI * 2); c.stroke(); }
+      c.restore();
+      if (t > 1.1 && t < 2.3) { c.globalAlpha = seg(t, 1.1, 1.3) * (1 - seg(t, 2.1, 2.3)); bigText(c, 'KNEEL.', W / 2, 150, 120, '#fff', '#8a6a20'); c.globalAlpha = 1; }
+      caption(c, 'You stand in the presence of a god.', t, 0.1, 1.05, '#fff6d0');
+      caption(c, 'Be judged.', t, 2.35, 3.25, '#fff6d0');
+      flashAt(c, t, 4.2, 4.6, '#fffbe8');
+      if (t > 4.7) titleSlam(c, 'THRONE OF HEAVEN', 'THE VERDICT IS FINAL', t, 4.8, '#ffd35a', 96);
     },
   };
 }
 
 // The fall: kneeling in rubble, the halo cracks, black feathers bloom.
 function csAurelionFall(f) {
-  const fx = new ParticleSystem(1600), d = f.baseDef || f.def, killer = f.opp ? f.opp.def : null;
+  const fx = new ParticleSystem(1800), d = f.baseDef || f.def, killer = f.opp ? f.opp.def : null, vA = {}, vF = {};
   return {
     name: 'FALLEN GOD', dur: 5.4, fx,
-    cues: [[0, () => aurSfx('tone', 220, 0.6, 'sine', 0.1, 110)], [1.2, () => aurSfx('clang')], [2.0, () => { aurSfx('boom'); aurSfx('roar'); aurSfx('screech'); }], [3.4, () => aurSfx('boom')]],
+    cues: [[0, () => aurSfx('tone', 220, 0.6, 'sine', 0.1, 110)], [1.3, () => aurSfx('clang')], [2.4, () => { aurSfx('boom'); aurSfx('roar'); aurSfx('screech'); }], [3.6, () => aurSfx('boom')]],
     draw(c, t) {
-      if (t < 2.0) {
-        aurSkyGold(c, 0.15 * (1 - seg(t, 0, 2)));
-        vignette(c, 0.8);
-        drawCharAt(c, d, W / 2, H - 40, 2.8, 1, { pose: 'kneel', anim: t, transformed: true, fallen: t > 1.3 });
-        if (killer) caption(c, killer.name + '... a MORTAL...?', t, 0.2, 1.1, '#ffe08a');
-        caption(c, 'No. NO. I AM A GOD!', t, 1.2, 1.95, '#ff5a6a');
-        flashAt(c, t, 1.2, 1.35, '#ff2a3a');
-      } else if (t < 3.4) {
-        c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
-        const k = ease.out(seg(t, 2.0, 3.2));
-        for (let i = 0; i < 5; i++) fx.add({ x: W / 2 + rand(-60, 60), y: H / 2 + rand(-60, 60), vx: rand(-500, 500), vy: rand(-500, 300), life: 1.4, size: rand(5, 10), color: pick(['#12040a', '#2a0a12', '#ff2a3a']), shape: 'rect', rot: rand(0, 6), vr: rand(-6, 6) });
-        fx.draw(c);
-        c.globalCompositeOperation = 'lighter'; glowCircle(c, W / 2, H / 2 - 60, 200 * k, 'rgba(255,30,50,0.7)', 'rgba(0,0,0,0)'); c.globalCompositeOperation = 'source-over';
-        drawCharAt(c, d, W / 2, H / 2 + 190, lerp(1.8, 2.7, k), 1, { pose: 'charge', anim: t, transformed: true, fallen: true });
-        speedLines(c, t, W / 2, H / 2, 'rgba(255,40,60,0.5)');
-      } else {
-        const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0a0004'); g.addColorStop(1, '#6a0a18'); c.fillStyle = g; c.fillRect(0, 0, W, H);
-        fx.draw(c);
-        glowCircle(c, W / 2, H - 200, 420, 'rgba(255,30,50,0.35)', 'rgba(255,30,50,0)');
-        drawCharAt(c, d, W / 2, H - 20, 2.9, 1, { pose: 'victory', anim: t, transformed: true, fallen: true });
-        titleSlam(c, 'FALLEN GOD', 'IF I CANNOT BE WORSHIPPED, I WILL BE FEARED', t, 3.5, '#ff2a3a', 100);
-        flashAt(c, t, 3.4, 3.7, '#ff2a3a');
-      }
+      // one shot: he kneels as his halo cracks, black feathers burst out of his wings, and the Fallen God rises from the rubble
+      const k = ease.inOut(seg(t, 1.3, 3.0)), swap = ease.inOut(seg(t, 1.7, 2.6)), rise = ease.inOut(seg(t, 2.0, 3.2));
+      c.save(); cineShake(c, t > 1.3 && t < 2.5 ? 5 : t > 2.4 && t < 3.6 ? 9 * (1 - seg(t, 2.4, 3.6)) : 0);
+      aurSkyGold(c, 0.15 * (1 - seg(t, 0, 2)));
+      const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0a0004'); g.addColorStop(1, '#6a0a18'); c.globalAlpha = k; c.fillStyle = g; c.fillRect(0, 0, W, H); c.globalAlpha = 1;
+      vignette(c, 0.6 * (1 - k * 0.5));
+      if (t > 1.3 && t < 3.2) for (let i = 0; i < 3; i++) fx.add({ x: W / 2 + rand(-160, 160), y: H - 260 + rand(-120, 60), vx: rand(-400, 400), vy: rand(-500, 100), life: 1.4, size: rand(5, 10), color: pick(['#12040a', '#2a0a12', '#ff2a3a']), shape: 'rect', rot: rand(0, 6), vr: rand(-6, 6) });
+      if (t > 2.4 && t < 2.6) fx.burst(W / 2, H - 300, 40, { color: ['#12040a', '#ff2a3a', '#ffd0d8'], size: 9, speed: 700, glow: true, life: 1 });
+      const y = H - 40 - 90 * rise, s = lerp(2.7, 3.0, k), pose = t < 1.9 ? 'kneel' : t < 3.5 ? 'charge' : 'victory';
+      c.save(); c.globalCompositeOperation = 'lighter'; glowCircle(c, W / 2, y - 200, 420 * k, 'rgba(255,30,50,0.4)', 'rgba(255,30,50,0)'); c.restore();
+      c.globalAlpha = 1 - swap; cineChar(c, d, vA, W / 2, y, s, t, pose, { transformed: true, fallen: false }); c.globalAlpha = swap;
+      if (swap > 0) cineChar(c, d, vF, W / 2, y, s, t, pose, { transformed: true, fallen: true }); c.globalAlpha = 1;
+      fx.draw(c);
+      if (t > 2.4) { const w = seg(t, 2.4, 3.2); c.strokeStyle = `rgba(255,40,60,${1 - w})`; c.lineWidth = 8; c.beginPath(); c.ellipse(W / 2, H - 30, w * 1000 + 1, w * 100 + 1, 0, 0, Math.PI * 2); c.stroke(); speedLines(c, t, W / 2, H / 2, `rgba(255,40,60,${0.5 * (1 - w)})`); }
+      c.restore();
+      if (killer) caption(c, killer.name + '... a MORTAL...?', t, 0.2, 1.2, '#ffe08a');
+      caption(c, 'No. NO. I AM A GOD!', t, 1.3, 2.3, '#ff5a6a');
+      flashAt(c, t, 1.3, 1.5, '#ff2a3a');
+      titleSlam(c, 'FALLEN GOD', 'IF I CANNOT BE WORSHIPPED, I WILL BE FEARED', t, 3.6, '#ff2a3a', 100);
+      flashAt(c, t, 2.4, 2.75, '#ff2a3a');
     },
   };
 }
@@ -501,40 +497,35 @@ aurelion.corruptCutscene = csAurelionFall;
 
 // Fallen ultimate: he drags the foe into a black sky; the shattered halo becomes a ring of blades.
 function csAurelionDeicide(a, opp) {
-  const fx = new ParticleSystem(2600), d = a.baseDef || a.def, city = makeCineCity(16, 120, 320), baseY = H - 30;
-  const oppScale = opp.transformed && opp.def.id === 'eric' ? 0.55 : 1.2;
+  const fx = new ParticleSystem(2600), d = a.baseDef || a.def, city = makeCineCity(16, 120, 320), baseY = H - 30, v = {};
+  const C = [W * 0.62, H * 0.42], hitX = W * 0.6;
   return {
     name: 'DEICIDE', dur: 6.6, fx,
-    cues: [[0, () => aurSfx('screech')], [1.0, () => aurSfx('whoosh')], [2.4, () => aurSfx('clang')], [3.6, () => { aurSfx('boom'); aurSfx('slam'); }], [4.2, () => aurSfx('boom')]],
+    cues: [[0, () => aurSfx('screech')], [1.0, () => aurSfx('whoosh')], [2.4, () => aurSfx('clang')], [3.6, () => aurSfx('whoosh')], [4.2, () => { aurSfx('boom'); aurSfx('slam'); aurSfx('boom', 0.2); }]],
     draw(c, t) {
+      // one shot: he climbs out of the city, the shattered halo becomes a ring of blades that closes on a point, and he falls as a comet
+      const up = ease.inOut(seg(t, 0.5, 2.4)), dive = ease.in(seg(t, 3.5, 4.2)), after = t >= 4.2;
+      c.save(); cineShake(c, after ? Math.max(0, 20 - (t - 4.2) * 18) : t > 3.5 ? 4 : 0);
       const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#040002'); g.addColorStop(1, '#4a0610'); c.fillStyle = g; c.fillRect(0, 0, W, H);
-      if (t < 2.4) {
-        const up = ease.out(seg(t, 0.6, 2.2));
-        drawCineCity(c, city, baseY + up * 500, '#12040a', false);
-        drawCharAt(c, d, W * 0.42, H * 0.62 - up * 120, 2.2, 1, { pose: 'fly', anim: t, transformed: true, fallen: true });
-        silhouette(c, o => drawCharAt(o, opp.def, W * 0.58, H * 0.66 - up * 110, oppScale, -1, { pose: 'hurt_air', anim: t, transformed: opp.transformed }), '#1a0206');
-        caption(c, 'If I fall... you fall with me.', t, 0.1, 1.2, '#ff8a9a');
-      } else if (t < 3.6) {
-        const k = ease.out(seg(t, 2.4, 3.2));
-        silhouette(c, o => drawCharAt(o, opp.def, W / 2, H / 2 + 90, oppScale * 1.2, -1, { pose: 'hurt_air', anim: t, transformed: opp.transformed }), '#1a0206');
-        for (let i = 0; i < 16; i++) { const an = i * Math.PI / 8 + t * 0.8, R = lerp(520, 170, k); drawHolyBlade(c, W / 2 + Math.cos(an) * R, H / 2 + Math.sin(an) * R * 0.7, 120, an + Math.PI, t, { fallen: true, glow: k }); }
-        bigText(c, 'DEICIDE', W / 2, 90, 90 * k + 1, '#ff2a3a', '#000');
-      } else if (t < 4.6) {
-        const k = seg(t, 3.6, 4.4);
-        drawCineCity(c, city.map(b => Object.assign({}, b, { dead: true })), baseY, '#12040a', false);
-        c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(255,40,60,1)'; c.lineWidth = 30 * (1 - k) + 4;
-        c.beginPath(); c.moveTo(W / 2, -20); c.lineTo(W / 2 + 20, baseY); c.stroke(); glowCircle(c, W / 2, baseY, 600 * k, 'rgba(255,30,50,0.5)', 'rgba(0,0,0,0)'); c.globalCompositeOperation = 'source-over';
-        if (t < 3.8) for (let i = 0; i < 10; i++) fx.add({ x: W / 2 + rand(-40, 40), y: baseY, vx: rand(-900, 900), vy: rand(-900, -200), life: 1, size: rand(8, 18), color: pick(['#ff2a3a', '#2a0008', '#888']), glow: true, g: 1200 });
-        fx.draw(c);
-        flashAt(c, t, 3.6, 3.95, '#ffd0d8');
-      } else {
-        drawCineCity(c, city.map(b => Object.assign({}, b, { dead: true })), baseY, '#0a0205', false);
-        fx.draw(c);
-        silhouette(c, o => { o.save(); o.translate(W * 0.7, baseY - 12); o.rotate(-1.45); drawCharAt(o, opp.def, 0, 0, oppScale * 0.9, -1, { pose: 'hurt', anim: 0, transformed: opp.transformed }); o.restore(); }, '#050001');
-        glowCircle(c, W * 0.4, baseY - 200, 380, 'rgba(255,20,40,0.3)', 'rgba(0,0,0,0)');
-        drawCharAt(c, d, W * 0.4, baseY - 6, 2.5, 1, { pose: 'intro', anim: t, transformed: true, fallen: true });
-        titleSlam(c, 'DEICIDE', 'NOW WE ARE BOTH FALLEN', t, 4.8, '#ff2a3a', 110);
-      }
+      if (after) for (const b of city) b.dead = true;
+      drawCineCity(c, city, baseY + up * 500 * (1 - dive), after ? '#0a0205' : '#12040a', false);
+      const hover = [W * 0.42, lerp(H * 0.66, H * 0.4, up)], tgt = [hitX, baseY - 60];
+      const px = lerp(hover[0], tgt[0], dive), py = lerp(hover[1], tgt[1], dive);
+      if (t > 2.4 && t < 3.6) { const k = ease.out(seg(t, 2.4, 3.2)), col = seg(t, 3.0, 3.5);
+        for (let i = 0; i < 16; i++) { const an = i * Math.PI / 8 + t * 0.8, R = lerp(520, 170, k) * (1 - col * 0.6); drawHolyBlade(c, C[0] + Math.cos(an) * R, C[1] + Math.sin(an) * R * 0.7, 120, an + Math.PI, t, { fallen: true, glow: k }); }
+        c.save(); c.globalCompositeOperation = 'lighter'; glowCircle(c, C[0], C[1], 30 + 150 * k, 'rgba(255,30,50,0.8)', 'rgba(0,0,0,0)'); c.restore(); }
+      if (t >= 3.5 && !after) { c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(255,40,60,0.8)'; c.lineWidth = 40 * (1 - dive) + 8; c.beginPath(); c.moveTo(hover[0], hover[1]); c.lineTo(px, py); c.stroke(); c.restore();
+        fx.add({ x: px, y: py, vx: rand(-200, 200), vy: rand(-300, 0), life: 0.6, size: rand(10, 22), color: pick(['#ff2a3a', '#2a0008', '#ff8a5a']), glow: true }); }
+      if (t > 4.2 && t < 4.5) for (let i = 0; i < 6; i++) fx.add({ x: hitX, y: baseY, vx: rand(-900, 900), vy: rand(-900, -200), life: 1, size: rand(8, 18), color: pick(['#ff2a3a', '#2a0008', '#888']), glow: true, g: 1200 });
+      if (after) { c.save(); c.globalCompositeOperation = 'lighter'; const k = seg(t, 4.2, 5.0); c.strokeStyle = `rgba(255,40,60,${1 - k})`; c.lineWidth = 12; c.beginPath(); c.ellipse(hitX, baseY - 10, k * 1100 + 1, k * 140 + 1, 0, 0, Math.PI * 2); c.stroke(); glowCircle(c, hitX, baseY, 600 * ease.out(k), `rgba(255,30,50,${0.5 * (1 - k)})`, 'rgba(0,0,0,0)'); c.restore(); }
+      fx.draw(c);
+      const pose = t < 3.5 ? 'fly' : !after ? 'air_spike' : t < 4.8 ? 'kneel' : 'intro';
+      cineChar(c, d, v, after ? hitX : px, after ? baseY - 6 : py, lerp(2.2, 2.5, dive), t, pose, { transformed: true, fallen: true });
+      c.restore();
+      caption(c, 'If I fall... you fall with me.', t, 0.1, 1.3, '#ff8a9a');
+      if (t > 2.4 && t < 3.6) bigText(c, 'DEICIDE', W / 2, 90, 90 * ease.out(seg(t, 2.4, 3.2)) + 1, '#ff2a3a', '#000');
+      flashAt(c, t, 4.2, 4.6, '#ffd0d8');
+      if (t > 4.7) titleSlam(c, 'DEICIDE', 'NOW WE ARE BOTH FALLEN', t, 4.8, '#ff2a3a', 110);
     },
   };
 }
