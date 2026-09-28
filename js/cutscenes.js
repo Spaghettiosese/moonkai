@@ -611,77 +611,194 @@ function csVersus(p1, p2) {
 
 
 // ============================================================
+//  KAEL — shared cinematic helpers
+//  Everything here is driven by t (and a real dt for particle emission), so the shots play
+//  the same at any frame rate: no per-frame random jitter, no spawn-per-draw bursts.
+// ============================================================
+// smooth, decaying camera shake: pass the times of impacts, get an offset
+function kaShake(t, hits, amp = 14, decay = 7) {
+  let a = 0;
+  for (const h of hits) if (t >= h) a += amp * Math.exp(-(t - h) * decay);
+  return [Math.sin(t * 61) * a + Math.sin(t * 23) * a * 0.4, Math.cos(t * 53) * a * 0.8];
+}
+// emit n particles per second from fn, using an accumulator on the cutscene state
+function kaEmit(st, key, rate, dt, fn) {
+  st[key] = (st[key] || 0) + rate * dt;
+  while (st[key] >= 1) { st[key] -= 1; fn(); }
+}
+// smooth crossfade between shots: fade to black around a cut
+function kaCut(c, t, at, w = 0.12) { const d = Math.abs(t - at); if (d < w) { c.globalAlpha = 1 - d / w; c.fillStyle = '#000'; c.fillRect(0, 0, W, H); c.globalAlpha = 1; } }
+
+// The demon's face. Drawn in a 100x100 box; k = how "awake" it is (0 → eyes dark, 1 → fully lit).
+function drawKaelDemonFace(c, x, y, size, t, k = 1) {
+  c.save(); c.translate(x, y); c.scale(size / 100, size / 100);
+  const fl = 0.85 + 0.15 * Math.sin(t * 11);
+  // horns, swept back
+  for (const s of [-1, 1]) {
+    const g = c.createLinearGradient(50, 40, 50 + s * 40, -10); g.addColorStop(0, '#2a0505'); g.addColorStop(1, '#070000');
+    c.fillStyle = g; c.beginPath(); c.moveTo(50 + s * 10, 34);
+    c.bezierCurveTo(50 + s * 30, 26, 50 + s * 46, 12, 50 + s * 40, -14);
+    c.bezierCurveTo(50 + s * 36, 8, 50 + s * 24, 22, 50 + s * 18, 40); c.closePath(); c.fill();
+    c.strokeStyle = 'rgba(255,90,30,0.35)'; c.lineWidth = 0.8;
+    for (let i = 1; i < 5; i++) { const q = i / 5; c.beginPath(); c.moveTo(50 + s * (12 + 24 * q), 34 - 30 * q); c.lineTo(50 + s * (18 + 22 * q), 38 - 36 * q); c.stroke(); }
+  }
+  // skull-tight face
+  const fg = c.createLinearGradient(0, 30, 0, 90); fg.addColorStop(0, '#7a1818'); fg.addColorStop(1, '#3a0606');
+  c.fillStyle = fg; c.strokeStyle = '#150000'; c.lineWidth = 1.6;
+  c.beginPath(); c.moveTo(30, 38); c.lineTo(50, 30); c.lineTo(70, 38); c.lineTo(72, 58); c.lineTo(62, 78); c.lineTo(50, 86); c.lineTo(38, 78); c.lineTo(28, 58); c.closePath(); c.fill(); c.stroke();
+  // hollow cheeks + brow ridge
+  c.fillStyle = 'rgba(0,0,0,0.45)';
+  for (const s of [-1, 1]) { c.beginPath(); c.moveTo(50 + s * 20, 58); c.lineTo(50 + s * 12, 74); c.lineTo(50 + s * 16, 60); c.fill(); }
+  c.fillStyle = '#240303'; c.beginPath(); c.moveTo(30, 44); c.lineTo(50, 50); c.lineTo(70, 44); c.lineTo(68, 40); c.lineTo(50, 45); c.lineTo(32, 40); c.fill();
+  // glowing cracks (where the core broke through)
+  c.save(); c.globalCompositeOperation = 'lighter';
+  c.strokeStyle = `rgba(255,${110 + 60 * fl | 0},40,${0.9 * k})`; c.lineWidth = 1.4; c.lineCap = 'round';
+  for (const pts of [[[34, 40], [38, 48], [36, 56]], [[66, 42], [60, 52], [64, 64], [60, 72]], [[46, 76], [50, 82], [54, 78]]]) {
+    c.beginPath(); c.moveTo(...pts[0]); for (const p of pts.slice(1)) c.lineTo(...p); c.stroke();
+  }
+  // eyes: slits that ignite
+  for (const s of [-1, 1]) glowCircle(c, 50 + s * 10, 52, 14 * k * fl, 'rgba(255,90,20,1)', 'rgba(255,0,0,0)');
+  c.restore();
+  for (const s of [-1, 1]) {
+    c.fillStyle = k > 0.05 ? '#fff2b0' : '#200'; c.beginPath();
+    c.moveTo(50 + s * 4, 53); c.lineTo(50 + s * 16, 49); c.lineTo(50 + s * 13, 55); c.closePath(); c.fill();
+    c.fillStyle = '#200'; c.fillRect(50 + s * 10 - 0.8, 50, 1.6, 5);
+  }
+  // grin full of teeth
+  c.fillStyle = '#120000'; c.beginPath(); c.moveTo(36, 66); c.quadraticCurveTo(50, 78, 64, 66); c.quadraticCurveTo(50 , 72, 36, 66); c.fill();
+  c.fillStyle = '#f4e6d0';
+  for (let i = 0; i < 7; i++) { const tx = 39 + i * 3.7, ty = 67 + Math.sin(i / 6 * Math.PI) * 3.5; c.beginPath(); c.moveTo(tx, ty); c.lineTo(tx + 1.8, ty + 3.4); c.lineTo(tx + 3.6, ty); c.fill(); }
+  c.save(); c.globalCompositeOperation = 'lighter'; glowCircle(c, 50, 70, 8 * k, 'rgba(255,120,40,0.6)', 'rgba(0,0,0,0)'); c.restore();
+  // messy dark hair over the brow
+  c.fillStyle = '#0c0101'; c.beginPath(); c.moveTo(28, 44); c.lineTo(30, 30); c.lineTo(42, 22); c.lineTo(52, 24); c.lineTo(64, 20); c.lineTo(72, 30); c.lineTo(72, 44); c.lineTo(64, 34); c.lineTo(56, 40); c.lineTo(50, 32); c.lineTo(42, 40); c.lineTo(36, 34); c.closePath(); c.fill();
+  c.restore();
+}
+
+// Full-screen portrait cut-in panel: a slanted strip slides in, the face zooms, eyes ignite.
+function kaDemonCutIn(c, t, a, b, line) {
+  if (t < a || t > b) return;
+  const inK = ease.out(seg(t, a, a + 0.25)), outK = ease.in(seg(t, b - 0.2, b));
+  const slide = (1 - inK) * -W + outK * W;
+  c.save(); c.translate(slide, 0);
+  // slanted strip
+  c.beginPath(); c.moveTo(0, H * 0.2); c.lineTo(W, H * 0.12); c.lineTo(W, H * 0.82); c.lineTo(0, H * 0.9); c.closePath();
+  const g = c.createLinearGradient(0, 0, W, 0); g.addColorStop(0, '#1a0000'); g.addColorStop(0.5, '#5a0804'); g.addColorStop(1, '#1a0000');
+  c.fillStyle = g; c.fill(); c.save(); c.clip();
+  // speed streaks
+  c.strokeStyle = 'rgba(255,120,60,0.25)'; c.lineWidth = 3;
+  for (let i = 0; i < 26; i++) { const y = H * 0.12 + ((i * 37) % 100) / 100 * H * 0.78, x = ((i * 211 + t * 2400) % (W + 400)) - 200; c.beginPath(); c.moveTo(x, y); c.lineTo(x - 260, y + 30); c.stroke(); }
+  const ignite = ease.out(seg(t, a + 0.25, a + 0.55)), zoom = lerp(1, 1.08, seg(t, a, b));
+  const sz = 520 * zoom; drawKaelDemonFace(c, W * 0.34 - sz / 2, H * 0.52 - sz * 0.58, sz, t, ignite);
+  c.restore();
+  c.strokeStyle = '#ff5a1a'; c.lineWidth = 5;
+  c.beginPath(); c.moveTo(0, H * 0.2); c.lineTo(W, H * 0.12); c.moveTo(W, H * 0.82); c.lineTo(0, H * 0.9); c.stroke();
+  if (line) {
+    const p = seg(t, a + 0.3, a + 0.9);
+    c.globalAlpha = Math.min(1, p * 3);
+    bigText(c, line.slice(0, Math.ceil(line.length * p)), W * 0.63, H * 0.5, 44, '#ffd6b0', '#1a0000', 'left');
+    c.globalAlpha = 1;
+  }
+  c.restore();
+}
+
+// ============================================================
 //  KAEL — CORE SHATTER (revive transformation)
+//  1. He's down. The core flickers in time with a slowing heartbeat.
+//  2. Inside the core: every beat spreads the cracks, and an eye opens in the fracture.
+//  3. It shatters. The demon's face cuts in.
+//  4. The demon climbs out of a pillar of hellfire, wings open, title.
 // ============================================================
 function csKaelRevive(f) {
-  const fx = new ParticleSystem(2000);
-  const shards = [];
+  const fx = new ParticleSystem(1600), st = { last: 0 };
+  const BEATS = [0.25, 0.95, 1.55, 2.05, 2.45];
+  const SHATTER = 2.8, CUT = [SHATTER + 0.25, SHATTER + 1.55], RISE = CUT[1];
+  const shards = Array.from({ length: 36 }, (_, i) => { const a = i / 36 * Math.PI * 2 + (i % 3) * 0.2, sp = 380 + (i * 97) % 700; return { vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: i, s: 12 + (i * 13) % 26 }; });
+  const beat = t => { let v = 0; for (const b of BEATS) if (t >= b) v = Math.max(v, Math.exp(-(t - b) * 9)); return v; };
   return {
-    name: 'CORE SHATTER', dur: 5.4, fx,
-    cues: [[0.2, () => Sfx.heartbeat()], [0.9, () => Sfx.heartbeat()], [1.5, () => Sfx.tone(1800, 0.2, 'triangle', 0.1, 900)], [1.8, () => Sfx.tone(1400, 0.2, 'triangle', 0.12, 600)], [2.15, () => { Sfx.boom(); Sfx.slam(); }], [2.9, () => Sfx.roar()], [3.4, () => Sfx.fire()]],
+    name: 'CORE SHATTER', dur: 7.2, fx,
+    cues: [...BEATS.map((b, i) => [b, () => { Sfx.heartbeat(); if (i >= 2) Sfx.tone(1900 - i * 220, 0.18, 'triangle', 0.1, 700); }]),
+      [SHATTER, () => { Sfx.boom(); Sfx.slam(); }], [CUT[0] + 0.25, () => Sfx.roar()], [RISE, () => Sfx.fire()], [RISE + 0.7, () => { Sfx.boom(); Sfx.roar(); }]],
     draw(c, t) {
-      if (t < 1.3) {
-        // he's down. the core flickers.
-        c.fillStyle = '#07080c'; c.fillRect(0, 0, W, H);
-        glowCircle(c, W / 2, H - 150, 500, 'rgba(40,60,80,0.35)', 'rgba(0,0,0,0)');
-        c.fillStyle = '#101218'; c.fillRect(0, H - 150, W, 150);
+      const dt = clamp(t - st.last, 0, 0.05); st.last = t;
+      if (t < 1.4) {
+        // 1 — on the ground; camera drifts in slowly
+        const z = lerp(1, 1.12, ease.inOut(seg(t, 0, 1.4)));
+        c.fillStyle = '#06070b'; c.fillRect(0, 0, W, H);
+        c.save(); c.translate(W / 2, H / 2); c.scale(z, z); c.translate(-W / 2, -H / 2);
+        glowCircle(c, W / 2, H - 150, 520, 'rgba(40,60,80,0.3)', 'rgba(0,0,0,0)');
+        c.fillStyle = '#0e1016'; c.fillRect(0, H - 150, W, 150);
         c.save(); c.translate(W / 2 - 150, H - 150); c.rotate(-Math.PI / 2 * 0.97); c.scale(3, 3);
-        f.def.draw(c, { pose: 'hurt', anim: 0, transformed: false });
-        c.restore();
-        const flick = Math.random() < 0.35 ? 0 : 1;
+        f.def.draw(c, { pose: 'hurt', anim: 0, transformed: false }); c.restore();
         c.globalCompositeOperation = 'lighter';
-        glowCircle(c, W / 2 + 60, H - 175, 60 * flick, 'rgba(60,220,255,0.6)', 'rgba(0,0,0,0)');
+        glowCircle(c, W / 2 + 60, H - 175, 30 + 70 * beat(t), 'rgba(60,220,255,0.7)', 'rgba(0,0,0,0)');
         c.globalCompositeOperation = 'source-over';
+        c.restore();
         vignette(c, 0.9);
-        caption(c, '...so this is what dying feels like.', t, 0.1, 1.25, '#bfe9ff');
-      } else if (t < 2.25) {
-        // extreme close-up: the core cracks
-        const p = seg(t, 1.3, 2.1);
-        c.fillStyle = '#0b0d12'; c.fillRect(0, 0, W, H);
-        c.fillStyle = '#1b222b'; c.fillRect(0, 0, W, H);
-        const sh = p * 10; c.save(); c.translate(rand(-sh, sh), rand(-sh, sh));
-        drawCore(c, W / 2, H / 2, 170, t, false);
+        caption(c, '...so this is what dying feels like.', t, 0.1, 1.35, '#bfe9ff');
+      } else if (t < SHATTER) {
+        // 2 — inside the core; cracks grow on each beat, red light leaks, an eye opens
+        const p = seg(t, 1.4, SHATTER), b = beat(t);
+        const [sx, sy] = kaShake(t, BEATS.slice(2), 9, 8);
+        c.fillStyle = '#12171e'; c.fillRect(0, 0, W, H);
+        c.save(); c.translate(W / 2 + sx, H / 2 + sy); const z = 1 + 0.06 * b + 0.25 * ease.in(p); c.scale(z, z);
+        drawCore(c, 0, 0, 170, t, false);
+        const grown = BEATS.filter(x => x <= t && x > 1.4).length + seg(t, 1.4, 1.55);
         c.strokeStyle = '#05080a'; c.lineCap = 'round';
-        for (let i = 0; i < 9; i++) {
-          const a = i * 0.7 + 0.3, len = 190 * Math.min(1, p * 1.3 - i * 0.07);
+        for (let i = 0; i < 10; i++) {
+          const a = i * 0.63 + 0.3, len = 175 * clamp(grown / 3 - i * 0.08, 0, 1);
           if (len <= 0) continue;
-          c.lineWidth = 8 - i * 0.5; c.beginPath(); c.moveTo(W / 2, H / 2);
-          c.lineTo(W / 2 + Math.cos(a) * len * 0.5 + 10, H / 2 + Math.sin(a) * len * 0.5 - 8); c.lineTo(W / 2 + Math.cos(a) * len, H / 2 + Math.sin(a) * len); c.stroke();
+          c.lineWidth = 9 - i * 0.6; c.beginPath(); c.moveTo(0, 0);
+          c.lineTo(Math.cos(a) * len * 0.5 + 10 * Math.sin(i), Math.sin(a) * len * 0.5 - 8 * Math.cos(i)); c.lineTo(Math.cos(a) * len, Math.sin(a) * len); c.stroke();
         }
         c.globalCompositeOperation = 'lighter';
-        glowCircle(c, W / 2, H / 2, 80 * p, 'rgba(255,60,20,0.9)', 'rgba(255,0,0,0)');
+        glowCircle(c, 0, 0, 40 + 120 * p + 40 * b, `rgba(255,60,20,${0.4 + 0.5 * p})`, 'rgba(255,0,0,0)');
         c.globalCompositeOperation = 'source-over';
-        c.restore();
-        if (t > 1.5) bigText(c, 'CRACK', W * 0.22, 180, 60, '#bfe9ff');
-        if (t > 1.8) bigText(c, 'CRACK', W * 0.78, H - 180, 70, '#ff7a5a');
-      } else {
-        // shatter → the demon rises out of the fire
-        if (!shards.length) for (let i = 0; i < 40; i++) {
-          const a = rand(0, Math.PI * 2), sp = rand(300, 1200);
-          shards.push({ x: W / 2, y: H / 2, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rand(0, 6), s: rand(10, 40) });
+        // the eye in the fracture
+        const open = ease.out(seg(t, 2.1, 2.6));
+        if (open > 0) {
+          c.fillStyle = '#ffcf6a'; c.beginPath(); c.ellipse(0, 0, 60, 22 * open, 0, 0, Math.PI * 2); c.fill();
+          c.fillStyle = '#1a0000'; c.beginPath(); c.ellipse(0, 0, 6, 20 * open, 0, 0, Math.PI * 2); c.fill();
         }
+        c.restore();
+        vignette(c, 0.7, '40,0,0');
+        if (t > 1.6) { c.globalAlpha = seg(t, 1.6, 1.7) * (1 - seg(t, 2.2, 2.3)); bigText(c, 'CRACK', W * 0.2, 170, 64, '#bfe9ff'); c.globalAlpha = 1; }
+        if (t > 2.05) { c.globalAlpha = seg(t, 2.05, 2.15); bigText(c, 'CRACK', W * 0.8, H - 170, 76, '#ff7a5a'); c.globalAlpha = 1; }
+        kaCut(c, t, 1.4, 0.15);
+      } else {
+        // 3/4 — hellfire background, shards flying out, cut-in, then the demon rises
         const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#120000'); g.addColorStop(1, '#5a0a02');
         c.fillStyle = g; c.fillRect(0, 0, W, H);
-        for (let i = 0; i < 6; i++) fx.add({ x: rand(0, W), y: H, vx: rand(-20, 20), vy: rand(-500, -200), life: rand(0.6, 1.2), size: rand(12, 30), color: pick(['#ff3b1a', '#ff8a1a', '#7a0000']), glow: true, grow: -10 });
+        kaEmit(st, 'embers', t < RISE ? 60 : 160, dt, () => fx.add({ x: rand(0, W), y: H + 10, vx: rand(-30, 30), vy: rand(-520, -220), life: rand(0.7, 1.3), size: rand(10, 26), color: pick(['#ff3b1a', '#ff8a1a', '#7a0000']), glow: true, grow: -12 }));
+        const [sx, sy] = kaShake(t, [SHATTER, RISE + 0.7], 16, 5);
+        c.save(); c.translate(sx, sy);
         fx.draw(c);
-        const rise = ease.out(seg(t, 2.5, 3.6));
-        const sh = t < 3.6 ? 8 : 0; c.save(); c.translate(rand(-sh, sh), rand(-sh, sh));
-        silhouette(c, o => drawCharAt(o, f.def, W / 2, H + 40 + (1 - rise) * 380, 4.2, 1, { pose: t < 3.2 ? 'charge' : 'victory', anim: t, transformed: true }), '#0a0000', 1);
-        c.globalCompositeOperation = 'lighter';
-        glowCircle(c, W / 2 + 6 * 4.2, H + 40 + (1 - rise) * 380 - 101 * 4.2, 40, 'rgba(255,90,20,1)', 'rgba(255,0,0,0)');
-        glowCircle(c, W / 2 + 4, H + 40 + (1 - rise) * 380 - 78 * 4.2, 50, 'rgba(255,60,20,0.9)', 'rgba(255,0,0,0)');
-        c.globalCompositeOperation = 'source-over';
+        const rise = ease.out(seg(t, RISE, RISE + 0.9)), y0 = H + 40 + (1 - rise) * 420, S = 4.0;
+        if (t > RISE - 0.2) {
+          // pillar of fire he climbs out of
+          c.globalCompositeOperation = 'lighter';
+          const pw = 160 + 60 * Math.sin(t * 8);
+          const pg = c.createLinearGradient(W / 2 - pw, 0, W / 2 + pw, 0); pg.addColorStop(0, 'rgba(255,40,0,0)'); pg.addColorStop(0.5, `rgba(255,120,40,${0.7 * seg(t, RISE - 0.2, RISE + 0.2)})`); pg.addColorStop(1, 'rgba(255,40,0,0)');
+          c.fillStyle = pg; c.fillRect(W / 2 - pw, 0, pw * 2, H);
+          c.globalCompositeOperation = 'source-over';
+          drawCharAt(c, f.def, W / 2, y0, S, 1, { pose: t < RISE + 0.8 ? 'charge' : 'victory', anim: t, transformed: true });
+          c.globalCompositeOperation = 'lighter';
+          glowCircle(c, W / 2 + 6 * S, y0 - 101 * S, 36, 'rgba(255,90,20,1)', 'rgba(255,0,0,0)');
+          c.globalCompositeOperation = 'source-over';
+        }
         c.restore();
-        // core shards flying at the camera
-        const dt = t - 2.25;
-        for (const s of shards) {
-          const x = s.x + s.vx * dt, y = s.y + s.vy * dt + 300 * dt * dt;
-          c.save(); c.translate(x, y); c.rotate(s.r + dt * 6); c.fillStyle = 'rgba(190,246,255,0.9)';
+        // core shards (deterministic ballistic paths from the moment it shattered)
+        const d = t - SHATTER;
+        if (d < 1.4) for (const s of shards) {
+          const x = W / 2 + s.vx * d, y = H / 2 + s.vy * d + 320 * d * d, sc = 1 + d * 1.5;
+          c.save(); c.translate(x, y); c.rotate(s.r + d * 6); c.scale(sc, sc); c.globalAlpha = 1 - seg(d, 0.9, 1.4); c.fillStyle = 'rgba(190,246,255,0.95)';
           c.beginPath(); c.moveTo(0, -s.s); c.lineTo(s.s * 0.4, 0); c.lineTo(0, s.s * 0.6); c.lineTo(-s.s * 0.3, 0); c.fill(); c.restore();
         }
-        caption(c, 'It was never keeping me alive. It was keeping THIS in.', t, 3.0, 4.2, '#ffb09a');
-        titleSlam(c, 'CORE SHATTERED', 'DEMON FORM  •  REVIVED WITH 60 HP  •  ULTIMATE UNLOCKED', t, 4.2, '#ff4a2a', 110);
-        flashAt(c, t, 2.25, 2.6, '#ffffff');
+        c.globalAlpha = 1;
+        kaDemonCutIn(c, t, CUT[0], CUT[1], 'FINALLY... OUT.');
+        caption(c, 'It was never keeping me alive. It was keeping THIS in.', t, RISE + 0.1, RISE + 1.5, '#ffb09a');
+        titleSlam(c, 'CORE SHATTERED', 'DEMON FORM  •  REVIVED  •  ULTIMATE UNLOCKED', t, RISE + 1.5, '#ff4a2a', 110);
+        flashAt(c, t, SHATTER, SHATTER + 0.35, '#ffffff');
+        flashAt(c, t, RISE + 0.7, RISE + 0.95, '#ffb070');
       }
     },
   };
@@ -689,80 +806,105 @@ function csKaelRevive(f) {
 
 // ============================================================
 //  KAEL — HELLFIRE BARRAGE ultimate
+//  1. Cut-in: the demon's face.            2. Wide: he rises and tears portals open over the target.
+//  3. Barrage: meteors on a fixed schedule. 4. He forms the great meteor overhead and hurls it.
+//  5. Impact and aftermath.
 // ============================================================
 function csKaelUlt(f, opp) {
-  const fx = new ParticleSystem(3000);
-  const city = makeCineCity(); const baseY = H - 20;
-  const portals = Array.from({ length: 11 }, (_, i) => ({ x: 80 + i * 112 + rand(-20, 20), y: rand(90, 220), at: 0.5 + i * 0.08 }));
-  const meteors = []; let spawned = 0, last = 0;
-  const target = W * 0.7;
+  const fx = new ParticleSystem(2400), st = { last: 0 };
+  const city = makeCineCity(); const baseY = H - 20, target = W * 0.7, kx = W * 0.2;
+  const oppS = opp.transformed && opp.def.id === 'eric' ? 0.9 : 1.6;
+  const T = { cutEnd: 1.3, portals: 1.3, barrage: 2.4, form: 4.3, throwAt: 5.1, impact: 5.55, dur: 8.0 };
+  const portals = Array.from({ length: 9 }, (_, i) => ({ x: target + (i - 4) * 95 + ((i * 37) % 30) - 15, y: 90 + ((i * 53) % 110), at: T.portals + 0.1 + i * 0.09 }));
+  // fixed meteor schedule: each has spawn time, portal, target and a flight time
+  const meteors = Array.from({ length: 30 }, (_, i) => ({ t0: T.barrage + i * 0.062, p: portals[(i * 5) % 9], tx: target + (((i * 71) % 100) / 100 - 0.5) * 360, ty: baseY - ((i * 29) % 90), dur: 0.42 + ((i * 17) % 20) / 100, hit: false }));
+  const impacts = meteors.map(m => m.t0 + m.dur).filter((_, i) => i % 3 === 0);
+  const big = { x0: kx + 40, y0: 180 };
+  const bigPos = t => { const p = ease.in(seg(t, T.throwAt, T.impact)); return [lerp(big.x0, target, p), lerp(big.y0, baseY - 60, p)]; };
+  let bigHit = false;
   return {
-    name: 'HELLFIRE BARRAGE', dur: 7.0, fx,
-    cues: [[0, () => Sfx.roar()], [0.5, () => Sfx.charge(1.2)], [1.6, () => Sfx.fire()], [4.3, () => Sfx.charge(0.5)], [4.8, () => { Sfx.boom(); Sfx.boom(0.2); }]],
+    name: 'HELLFIRE BARRAGE', dur: T.dur, fx,
+    cues: [[0.05, () => Sfx.roar()], [T.portals, () => Sfx.charge(1.0)], ...portals.map(p => [p.at, () => Sfx.tone(220, 0.12, 'sawtooth', 0.06, 110)]), [T.barrage, () => Sfx.fire()],
+      [T.form, () => Sfx.charge(0.8)], [T.throwAt, () => Sfx.roar()], [T.impact, () => { Sfx.boom(); Sfx.boom(0.2); Sfx.slam(); }]],
     draw(c, t) {
-      const dt = Math.max(0, t - last); last = t;
-      if (t < 4.9) {
-        const red = seg(t, 0, 1.4);
+      const dt = clamp(t - st.last, 0, 0.05); st.last = t;
+      if (t < T.impact) {
+        // sky reddens as portals open
+        const red = seg(t, T.portals, T.barrage + 0.6);
         const g = c.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, `rgb(${lerp(8, 60, red)},${lerp(8, 4, red)},${lerp(24, 4, red)})`); g.addColorStop(1, `rgb(${lerp(50, 160, red)},${lerp(30, 30, red)},${lerp(70, 10, red)})`);
+        g.addColorStop(0, `rgb(${lerp(10, 70, red)},${lerp(8, 6, red)},${lerp(24, 4, red)})`); g.addColorStop(1, `rgb(${lerp(50, 170, red)},${lerp(30, 34, red)},${lerp(70, 10, red)})`);
         c.fillStyle = g; c.fillRect(0, 0, W, H);
-        const shk = t > 1.6 ? 7 : 0; c.save(); c.translate(rand(-shk, shk), rand(-shk, shk));
-        // portals of hell tear open across the sky
+        const [sx, sy] = kaShake(t, impacts, 5, 9);
+        c.save(); c.translate(sx, sy);
+        // portals tear open one by one
         for (const p of portals) {
           const k = ease.back(seg(t, p.at, p.at + 0.3)); if (k <= 0) continue;
           c.save(); c.translate(p.x, p.y); c.scale(k, k * 0.45);
-          c.globalCompositeOperation = 'lighter';
-          glowCircle(c, 0, 0, 70, 'rgba(255,60,20,0.7)', 'rgba(255,0,0,0)');
-          c.globalCompositeOperation = 'source-over';
+          c.globalCompositeOperation = 'lighter'; glowCircle(c, 0, 0, 74, 'rgba(255,60,20,0.7)', 'rgba(255,0,0,0)'); c.globalCompositeOperation = 'source-over';
           circle(c, 0, 0, 36, '#1a0000');
           c.strokeStyle = '#ff5a1a'; c.lineWidth = 4; c.setLineDash([10, 8]); c.lineDashOffset = t * 60;
           c.beginPath(); c.arc(0, 0, 44, 0, Math.PI * 2); c.stroke(); c.setLineDash([]);
           c.restore();
         }
-        // meteors
-        if (t > 1.6 && t < 4.2) {
-          while (spawned < (t - 1.6) * 22) {
-            const p = pick(portals);
-            meteors.push({ x: p.x, y: p.y, tx: rand(60, W - 60), ty: baseY - rand(0, 160), t: 0, dur: rand(0.45, 0.7), big: false });
-            spawned++;
-          }
-        }
-        if (t > 4.2 && !meteors.some(m => m.big)) meteors.push({ x: W / 2, y: -150, tx: target, ty: baseY - 60, t: 0, dur: 0.6, big: true });
+        // barrage meteors: position is a pure function of time
         for (const m of meteors) {
-          if (m.done) continue;
-          m.t += dt; const p = Math.min(1, m.t / m.dur);
-          const x = lerp(m.x, m.tx, p), y = lerp(m.y, m.ty, p * p);
-          const r = m.big ? 70 : 12;
-          for (let i = 0; i < (m.big ? 6 : 1); i++) fx.add({ x: x + rand(-r / 2, r / 2), y: y + rand(-r / 2, r / 2), vx: rand(-30, 30), vy: rand(-60, 0), life: m.big ? 0.6 : 0.35, size: r * rand(0.5, 1), color: pick(['#ff3b1a', '#ff8a1a', '#ffd08a']), glow: true, grow: -r });
-          c.globalCompositeOperation = 'lighter'; glowCircle(c, x, y, r * 2, 'rgba(255,200,120,1)', 'rgba(255,40,0,0)'); c.globalCompositeOperation = 'source-over';
+          const p = (t - m.t0) / m.dur; if (p < 0) continue;
           if (p >= 1) {
-            m.done = true;
-            fx.burst(m.tx, m.ty, m.big ? 120 : 16, { color: ['#ff3b1a', '#ff8a1a', '#ffe28a'], size: m.big ? 30 : 14, speed: m.big ? 900 : 320, glow: true, life: 0.8 });
-            for (const b of city) if (!b.dead && Math.abs(b.x + b.w / 2 - m.tx) < (m.big ? 400 : b.w * 0.6)) b.dead = true;
-            if (!m.big && Math.random() < 0.3) Sfx.boom();
+            if (!m.hit) { m.hit = true; fx.burst(m.tx, m.ty, 14, { color: ['#ff3b1a', '#ff8a1a', '#ffe28a'], size: 14, speed: 320, glow: true, life: 0.7 }); for (const b of city) if (!b.dead && Math.abs(b.x + b.w / 2 - m.tx) < b.w * 0.6) b.dead = true; if (meteors.indexOf(m) % 4 === 0) Sfx.boom(); }
+            continue;
           }
+          const x = lerp(m.p.x, m.tx, p), y = lerp(m.p.y, m.ty, p * p);
+          const px = lerp(m.p.x, m.tx, Math.max(0, p - 0.12)), py = lerp(m.p.y, m.ty, Math.max(0, p - 0.12) ** 2);
+          c.globalCompositeOperation = 'lighter';
+          c.strokeStyle = 'rgba(255,140,60,0.6)'; c.lineWidth = 10; c.lineCap = 'round'; c.beginPath(); c.moveTo(px, py); c.lineTo(x, y); c.stroke();
+          glowCircle(c, x, y, 26, 'rgba(255,220,140,1)', 'rgba(255,40,0,0)');
+          c.globalCompositeOperation = 'source-over';
         }
         drawCineCity(c, city, baseY);
-        silhouette(c, o => drawCharAt(o, opp.def, target, baseY, opp.transformed && opp.def.id === 'eric' ? 0.9 : 1.6, -1, { pose: t > 2.5 ? 'hurt' : 'block', anim: t, transformed: opp.transformed }), '#140404');
+        silhouette(c, o => drawCharAt(o, opp.def, target, baseY, oppS, -1, { pose: t > T.barrage + 0.5 ? 'hurt' : 'block', anim: t, transformed: opp.transformed }), '#140404');
         fx.draw(c);
-        drawCharAt(c, f.def, W * 0.2, baseY - 150 - Math.sin(t * 2) * 10, 2.4, 1, { pose: t < 1.6 ? 'charge' : 'cast', anim: t, transformed: true });
+        // Kael rises into place, raises an arm to open the sky, then forms the great meteor
+        const lift = ease.out(seg(t, T.cutEnd, T.cutEnd + 0.8)), ky = lerp(baseY + 60, baseY - 170, lift) - Math.sin(t * 2) * 8;
+        const pose = t < T.portals + 0.4 ? 'charge' : t < T.form ? 'cast' : t < T.throwAt ? 'charge' : 'throw';
+        drawCharAt(c, f.def, kx, ky, 2.4, 1, { pose, anim: t, transformed: true });
+        if (t > T.form) {
+          const grow = ease.out(seg(t, T.form, T.throwAt)), r = 20 + 80 * grow;
+          const [bx, by] = t < T.throwAt ? [big.x0, big.y0] : bigPos(t);
+          kaEmit(st, 'big', 90, dt, () => fx.add({ x: bx + rand(-r, r) * 0.6, y: by + rand(-r, r) * 0.6, vx: rand(-40, 40), vy: rand(-90, 0), life: 0.5, size: r * rand(0.3, 0.6), color: pick(['#ff3b1a', '#ff8a1a', '#ffd08a']), glow: true, grow: -r * 0.8 }));
+          if (t < T.throwAt) converge(fx, bx, by, '#ff8a1a', 1, 260);
+          c.globalCompositeOperation = 'lighter'; glowCircle(c, bx, by, r * 2.2, 'rgba(255,210,130,1)', 'rgba(255,40,0,0)'); c.globalCompositeOperation = 'source-over';
+          circle(c, bx, by, r * 0.55, '#ffe0a0');
+        }
         c.restore();
-        caption(c, 'You killed me once. Now you get to meet what I really am.', t, 0.1, 1.6, '#ffb09a');
-        if (t > 1.8 && t < 4.2) { c.globalAlpha = seg(t, 1.8, 2.0); bigText(c, 'HELLFIRE', W / 2, 330, 90, '#ff5a1a', '#1a0000'); c.globalAlpha = 1; }
-        if (t > 2.6 && t < 4.2) { c.globalAlpha = seg(t, 2.6, 2.8); bigText(c, 'BARRAGE!!', W / 2, 420, 100, '#ffd08a', '#1a0000'); c.globalAlpha = 1; }
+        kaDemonCutIn(c, t, 0, T.cutEnd, 'YOU KILLED ME ONCE.');
+        if (t > T.barrage + 0.1 && t < T.form) { c.globalAlpha = seg(t, T.barrage + 0.1, T.barrage + 0.3) * (1 - seg(t, T.form - 0.2, T.form)); bigText(c, 'HELLFIRE', W / 2, 300, 90, '#ff5a1a', '#1a0000'); c.globalAlpha = 1; }
+        if (t > T.barrage + 0.8 && t < T.form) { c.globalAlpha = seg(t, T.barrage + 0.8, T.barrage + 1.0) * (1 - seg(t, T.form - 0.2, T.form)); bigText(c, 'BARRAGE!!', W / 2, 400, 100, '#ffd08a', '#1a0000'); c.globalAlpha = 1; }
+        caption(c, 'Now meet what I really am.', t, T.form, T.impact, '#ffb09a');
       } else {
+        // impact + aftermath
+        if (!bigHit) { bigHit = true; fx.burst(target, baseY - 60, 140, { color: ['#ff3b1a', '#ff8a1a', '#ffe28a'], size: 30, speed: 900, glow: true, life: 0.9 }); }
         const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#1a0202'); g.addColorStop(1, '#7a1a04');
         c.fillStyle = g; c.fillRect(0, 0, W, H);
+        const [sx, sy] = kaShake(t, [T.impact], 22, 3.5);
+        c.save(); c.translate(sx, sy);
         drawCineCity(c, city.map(b => Object.assign({}, b, { dead: true })), baseY, '#140303', false);
-        if (Math.random() < 0.9) fx.add({ x: rand(0, W), y: baseY - rand(0, 60), vx: rand(-10, 30), vy: rand(-60, -20), life: rand(2, 3), size: rand(14, 30), color: 'rgba(30,10,10,0.5)', grow: 14 });
-        for (let i = 0; i < 2; i++) fx.add({ x: rand(0, W), y: baseY - rand(0, 80), vx: rand(-10, 10), vy: rand(-120, -40), life: 0.7, size: rand(5, 10), color: pick(['#ff3b1a', '#ff8a1a']), glow: true, grow: -6 });
-        fx.draw(c);
-        silhouette(c, o => drawCharAt(o, f.def, W / 2, baseY - 20, 2.8, 1, { pose: 'victory', anim: t, transformed: true }), '#0a0000');
+        const d = t - T.impact;
         c.globalCompositeOperation = 'lighter';
-        glowCircle(c, W / 2 + 6 * 2.8, baseY - 20 - 101 * 2.8, 26, 'rgba(255,90,20,1)', 'rgba(255,0,0,0)');
+        c.strokeStyle = `rgba(255,190,110,${1 - seg(d, 0, 1)})`; c.lineWidth = 14; c.beginPath(); c.ellipse(target, baseY - 20, 60 + 1100 * ease.out(seg(d, 0, 1)), 20 + 180 * ease.out(seg(d, 0, 1)), 0, 0, Math.PI * 2); c.stroke();
+        glowCircle(c, target, baseY - 60, 420 * (1 - seg(d, 0.2, 1.8)), 'rgba(255,120,40,0.8)', 'rgba(255,0,0,0)');
         c.globalCompositeOperation = 'source-over';
-        titleSlam(c, 'HELLFIRE BARRAGE', `${opp.def.name} BURIED IN HELLFIRE`, t, 5.1, '#ff4a2a', 100);
-        flashAt(c, t, 4.9, 5.5, '#ffd08a');
+        kaEmit(st, 'smoke', 40, dt, () => fx.add({ x: rand(0, W), y: baseY - rand(0, 60), vx: rand(-10, 30), vy: rand(-60, -20), life: rand(2, 3), size: rand(14, 30), color: 'rgba(30,10,10,0.5)', grow: 14 }));
+        kaEmit(st, 'ember', 100, dt, () => fx.add({ x: rand(0, W), y: baseY - rand(0, 80), vx: rand(-10, 10), vy: rand(-120, -40), life: 0.7, size: rand(5, 10), color: pick(['#ff3b1a', '#ff8a1a']), glow: true, grow: -6 }));
+        fx.draw(c);
+        silhouette(c, o => drawCharAt(o, opp.def, target, baseY, oppS, -1, { pose: 'kneel', anim: t, transformed: opp.transformed }), '#0a0000', 0.9);
+        const land = ease.out(seg(t, T.impact + 0.5, T.impact + 1.1));
+        silhouette(c, o => drawCharAt(o, f.def, W * 0.3, lerp(baseY - 170, baseY - 20, land), 2.8, 1, { pose: 'victory', anim: t, transformed: true }), '#0a0000');
+        c.globalCompositeOperation = 'lighter';
+        glowCircle(c, W * 0.3 + 6 * 2.8, lerp(baseY - 170, baseY - 20, land) - 101 * 2.8, 26, 'rgba(255,90,20,1)', 'rgba(255,0,0,0)');
+        c.globalCompositeOperation = 'source-over';
+        c.restore();
+        titleSlam(c, 'HELLFIRE BARRAGE', `${opp.def.name} BURIED IN HELLFIRE`, t, T.impact + 0.9, '#ff4a2a', 100);
+        flashAt(c, t, T.impact, T.impact + 0.6, '#ffe6b0');
       }
     },
   };

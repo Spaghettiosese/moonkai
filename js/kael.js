@@ -33,6 +33,7 @@ function drawKaelPortrait(c, opts) {
   c.fillStyle = D ? '#3a0b0b' : '#2b3440'; c.beginPath(); c.moveTo(6, 100); c.lineTo(20, 76); c.lineTo(80, 76); c.lineTo(94, 100); c.fill();
   c.save(); c.globalCompositeOperation = 'lighter'; glowCircle(c, 50, 94, D ? 22 : 16, D ? 'rgba(255,70,20,1)' : 'rgba(60,220,255,1)', 'rgba(0,0,0,0)'); c.restore();
   if (!D) { c.strokeStyle = '#9ff4ff'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(44, 90); c.lineTo(50, 96); c.lineTo(47, 100); c.moveTo(56, 88); c.lineTo(52, 95); c.stroke(); }
+  if (D) { drawKaelDemonFace(c, 2, 8, 96, 0, 1); return; }
   // gaunt face
   c.fillStyle = D ? '#6e1414' : '#c9b3a0'; c.strokeStyle = D ? '#200' : '#5a4a3a'; c.lineWidth = 1.3;
   c.beginPath(); c.moveTo(34, 36); c.lineTo(66, 36); c.lineTo(66, 56); c.lineTo(58, 71); c.lineTo(50, 74); c.lineTo(42, 71); c.lineTo(34, 56); c.closePath(); c.fill(); c.stroke();
