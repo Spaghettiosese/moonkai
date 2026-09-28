@@ -674,8 +674,12 @@ function drawKaelDemonFace(c, x, y, size, t, k = 1) {
   c.restore();
 }
 
+// Draw Kael through ONE persistent view object per shot, so the pixel fighter engine blends his
+// poses smoothly frame to frame (same approach as Volibear's cinematics).
+function kaDraw(c, d, v, x, y, s, t, pose, extra) { c.save(); c.translate(x, y); c.scale(s, s); Object.assign(v, { pose, anim: t }, extra); d.draw(c, v); c.restore(); }
+
 // Full-screen portrait cut-in panel: a slanted strip slides in, the face zooms, eyes ignite.
-function kaDemonCutIn(c, t, a, b, line) {
+function kaDemonCutIn(c, t, a, b, line, d) {
   if (t < a || t > b) return;
   const inK = ease.out(seg(t, a, a + 0.25)), outK = ease.in(seg(t, b - 0.2, b));
   const slide = (1 - inK) * -W + outK * W;
@@ -688,7 +692,14 @@ function kaDemonCutIn(c, t, a, b, line) {
   c.strokeStyle = 'rgba(255,120,60,0.25)'; c.lineWidth = 3;
   for (let i = 0; i < 26; i++) { const y = H * 0.12 + ((i * 37) % 100) / 100 * H * 0.78, x = ((i * 211 + t * 2400) % (W + 400)) - 200; c.beginPath(); c.moveTo(x, y); c.lineTo(x - 260, y + 30); c.stroke(); }
   const ignite = ease.out(seg(t, a + 0.25, a + 0.55)), zoom = lerp(1, 1.08, seg(t, a, b));
-  const sz = 520 * zoom; drawKaelDemonFace(c, W * 0.34 - sz / 2, H * 0.52 - sz * 0.58, sz, t, ignite);
+  // the demon's Pixel Studio bust, blown up with crisp pixels; the eyes flare as it ignites
+  const sz = 560 * zoom, px = W * 0.3 - sz / 2, py = H * 0.5 - sz / 2;
+  c.save(); c.translate(px, py); c.scale(sz / 100, sz / 100); const sm = c.imageSmoothingEnabled; c.imageSmoothingEnabled = false;
+  d.drawPortrait(c, { form: true }, d); c.imageSmoothingEnabled = sm; c.restore();
+  for (const [x0, x1] of [[px, px + 90], [px + sz, px + sz - 90]]) { const e = c.createLinearGradient(x0, 0, x1, 0); e.addColorStop(0, 'rgba(30,2,2,1)'); e.addColorStop(1, 'rgba(30,2,2,0)'); c.fillStyle = e; c.fillRect(Math.min(x0, x1), py, 90, sz); }
+  c.save(); c.globalCompositeOperation = 'lighter'; const fl = 0.85 + 0.15 * Math.sin(t * 11);
+  for (const s of [-1, 1]) glowCircle(c, px + sz * (0.5 + s * 0.094), py + sz * 0.485, sz * 0.09 * ignite * fl, 'rgba(255,90,20,0.9)', 'rgba(255,0,0,0)');
+  c.restore();
   c.restore();
   c.strokeStyle = '#ff5a1a'; c.lineWidth = 5;
   c.beginPath(); c.moveTo(0, H * 0.2); c.lineTo(W, H * 0.12); c.moveTo(W, H * 0.82); c.lineTo(0, H * 0.9); c.stroke();
@@ -709,7 +720,7 @@ function kaDemonCutIn(c, t, a, b, line) {
 //  4. The demon climbs out of a pillar of hellfire, wings open, title.
 // ============================================================
 function csKaelRevive(f) {
-  const fx = new ParticleSystem(1600), st = { last: 0 };
+  const fx = new ParticleSystem(1600), st = { last: 0 }, vDown = {}, vD = {};
   const BEATS = [0.25, 0.95, 1.55, 2.05, 2.45];
   const SHATTER = 2.8, CUT = [SHATTER + 0.25, SHATTER + 1.55], RISE = CUT[1];
   const shards = Array.from({ length: 36 }, (_, i) => { const a = i / 36 * Math.PI * 2 + (i % 3) * 0.2, sp = 380 + (i * 97) % 700; return { vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: i, s: 12 + (i * 13) % 26 }; });
@@ -728,7 +739,7 @@ function csKaelRevive(f) {
         glowCircle(c, W / 2, H - 150, 520, 'rgba(40,60,80,0.3)', 'rgba(0,0,0,0)');
         c.fillStyle = '#0e1016'; c.fillRect(0, H - 150, W, 150);
         c.save(); c.translate(W / 2 - 150, H - 150); c.rotate(-Math.PI / 2 * 0.97); c.scale(3, 3);
-        f.def.draw(c, { pose: 'hurt', anim: 0, transformed: false }); c.restore();
+        Object.assign(vDown, { pose: 'hurt', anim: t, transformed: false }); f.def.draw(c, vDown); c.restore();
         c.globalCompositeOperation = 'lighter';
         glowCircle(c, W / 2 + 60, H - 175, 30 + 70 * beat(t), 'rgba(60,220,255,0.7)', 'rgba(0,0,0,0)');
         c.globalCompositeOperation = 'source-over';
@@ -780,7 +791,7 @@ function csKaelRevive(f) {
           const pg = c.createLinearGradient(W / 2 - pw, 0, W / 2 + pw, 0); pg.addColorStop(0, 'rgba(255,40,0,0)'); pg.addColorStop(0.5, `rgba(255,120,40,${0.7 * seg(t, RISE - 0.2, RISE + 0.2)})`); pg.addColorStop(1, 'rgba(255,40,0,0)');
           c.fillStyle = pg; c.fillRect(W / 2 - pw, 0, pw * 2, H);
           c.globalCompositeOperation = 'source-over';
-          drawCharAt(c, f.def, W / 2, y0, S, 1, { pose: t < RISE + 0.8 ? 'charge' : 'victory', anim: t, transformed: true });
+          kaDraw(c, f.def, vD, W / 2, y0, S, t, t < RISE + 0.8 ? 'charge' : 'victory', { transformed: true });
           c.globalCompositeOperation = 'lighter';
           glowCircle(c, W / 2 + 6 * S, y0 - 101 * S, 36, 'rgba(255,90,20,1)', 'rgba(255,0,0,0)');
           c.globalCompositeOperation = 'source-over';
@@ -794,7 +805,7 @@ function csKaelRevive(f) {
           c.beginPath(); c.moveTo(0, -s.s); c.lineTo(s.s * 0.4, 0); c.lineTo(0, s.s * 0.6); c.lineTo(-s.s * 0.3, 0); c.fill(); c.restore();
         }
         c.globalAlpha = 1;
-        kaDemonCutIn(c, t, CUT[0], CUT[1], 'FINALLY... OUT.');
+        kaDemonCutIn(c, t, CUT[0], CUT[1], 'FINALLY... OUT.', f.def);
         caption(c, 'It was never keeping me alive. It was keeping THIS in.', t, RISE + 0.1, RISE + 1.5, '#ffb09a');
         titleSlam(c, 'CORE SHATTERED', 'DEMON FORM  •  REVIVED  •  ULTIMATE UNLOCKED', t, RISE + 1.5, '#ff4a2a', 110);
         flashAt(c, t, SHATTER, SHATTER + 0.35, '#ffffff');
@@ -811,7 +822,7 @@ function csKaelRevive(f) {
 //  5. Impact and aftermath.
 // ============================================================
 function csKaelUlt(f, opp) {
-  const fx = new ParticleSystem(2400), st = { last: 0 };
+  const fx = new ParticleSystem(2400), st = { last: 0 }, vK = {}, vEnd = {};
   const city = makeCineCity(); const baseY = H - 20, target = W * 0.7, kx = W * 0.2;
   const oppS = opp.transformed && opp.def.id === 'eric' ? 0.9 : 1.6;
   const T = { cutEnd: 1.3, portals: 1.3, barrage: 2.4, form: 4.3, throwAt: 5.1, impact: 5.55, dur: 8.0 };
@@ -866,7 +877,7 @@ function csKaelUlt(f, opp) {
         // Kael rises into place, raises an arm to open the sky, then forms the great meteor
         const lift = ease.out(seg(t, T.cutEnd, T.cutEnd + 0.8)), ky = lerp(baseY + 60, baseY - 170, lift) - Math.sin(t * 2) * 8;
         const pose = t < T.portals + 0.4 ? 'charge' : t < T.form ? 'cast' : t < T.throwAt ? 'charge' : 'throw';
-        drawCharAt(c, f.def, kx, ky, 2.4, 1, { pose, anim: t, transformed: true });
+        kaDraw(c, f.def, vK, kx, ky, 2.4, t, pose, { transformed: true });
         if (t > T.form) {
           const grow = ease.out(seg(t, T.form, T.throwAt)), r = 20 + 80 * grow;
           const [bx, by] = t < T.throwAt ? [big.x0, big.y0] : bigPos(t);
@@ -876,7 +887,7 @@ function csKaelUlt(f, opp) {
           circle(c, bx, by, r * 0.55, '#ffe0a0');
         }
         c.restore();
-        kaDemonCutIn(c, t, 0, T.cutEnd, 'YOU KILLED ME ONCE.');
+        kaDemonCutIn(c, t, 0, T.cutEnd, 'YOU KILLED ME ONCE.', f.def);
         if (t > T.barrage + 0.1 && t < T.form) { c.globalAlpha = seg(t, T.barrage + 0.1, T.barrage + 0.3) * (1 - seg(t, T.form - 0.2, T.form)); bigText(c, 'HELLFIRE', W / 2, 300, 90, '#ff5a1a', '#1a0000'); c.globalAlpha = 1; }
         if (t > T.barrage + 0.8 && t < T.form) { c.globalAlpha = seg(t, T.barrage + 0.8, T.barrage + 1.0) * (1 - seg(t, T.form - 0.2, T.form)); bigText(c, 'BARRAGE!!', W / 2, 400, 100, '#ffd08a', '#1a0000'); c.globalAlpha = 1; }
         caption(c, 'Now meet what I really am.', t, T.form, T.impact, '#ffb09a');
@@ -898,7 +909,7 @@ function csKaelUlt(f, opp) {
         fx.draw(c);
         silhouette(c, o => drawCharAt(o, opp.def, target, baseY, oppS, -1, { pose: 'kneel', anim: t, transformed: opp.transformed }), '#0a0000', 0.9);
         const land = ease.out(seg(t, T.impact + 0.5, T.impact + 1.1));
-        silhouette(c, o => drawCharAt(o, f.def, W * 0.3, lerp(baseY - 170, baseY - 20, land), 2.8, 1, { pose: 'victory', anim: t, transformed: true }), '#0a0000');
+        kaDraw(c, f.def, vEnd, W * 0.3, lerp(baseY - 170, baseY - 20, land), 2.8, t, land < 1 ? 'fall' : 'victory', { transformed: true });
         c.globalCompositeOperation = 'lighter';
         glowCircle(c, W * 0.3 + 6 * 2.8, lerp(baseY - 170, baseY - 20, land) - 101 * 2.8, 26, 'rgba(255,90,20,1)', 'rgba(255,0,0,0)');
         c.globalCompositeOperation = 'source-over';
