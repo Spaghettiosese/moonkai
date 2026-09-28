@@ -182,66 +182,48 @@ PortraitCache && Object.keys(PortraitCache).forEach(k => { if (k.startsWith('eri
 
 // ---------------- MOONLIGHT RUSH (human ultimate) ----------------
 function csEricMoonRush(a, opp) {
-  const fx = new ParticleSystem(2600), city = makeCineCity(18, 140, 360), baseY = H - 30;
-  const moonUp = !!ericMoon(a);
-  const oppScale = opp.transformed && opp.def.id === 'eric' ? 0.55 : 1.3;
-  const hits = [0.9, 1.25, 1.55, 1.8, 2.05, 2.3];
+  const fx = new ParticleSystem(2600), d = a.def, city = makeCineCity(18, 140, 360), baseY = H - 30, moonUp = !!ericMoon(a);
+  const v = {}, gh = [{}, {}], hits = [0.7, 1.05, 1.35, 1.6, 1.85, 2.1], combo = ['punch', 'kick', 'punch2', 'heavy', 'kick', 'uppercut'], fired = new Set();
+  const ex = W * 0.36, fistX = W * 0.68;
   return {
     name: 'MOONLIGHT RUSH', dur: 7.2, fx,
-    cues: hits.map(h => [h, () => { ericSfx('hit'); ericSfx('slam'); }]).concat([[0, () => ericSfx('whoosh')], [2.6, () => ericSfx('whoosh')], [3.3, () => ericSfx(moonUp ? 'heartbeat' : 'charge', 1)], [moonUp ? 4.4 : 4.2, () => { ericSfx(moonUp ? 'roar' : 'beam', 1.6); ericSfx('boom'); }]]),
+    cues: hits.map(h => [h, () => { ericSfx('hit'); ericSfx('slam'); }]).concat([[0, () => ericSfx('whoosh')], [2.3, () => ericSfx('whoosh')], [4.3, () => ericSfx(moonUp ? 'heartbeat' : 'charge', 1)], [moonUp ? 5.3 : 5.2, () => { ericSfx(moonUp ? 'roar' : 'beam', 1.6); ericSfx('boom'); }]]),
     draw(c, t) {
+      // one continuous shot: he rushes down the skyline, launches straight up with the last hit, then falls back to the rooftop
+      const n = hits.filter(h => t > h).length, lift = ease.out(seg(t, 2.25, 2.95)) * 430 - ease.in(seg(t, 3.5, 4.2)) * 430, camY = lift * 0.8;
+      const impact = moonUp && t >= 5.3;
+      c.save(); cineShake(c, hits.some(h => t > h && t < h + 0.08) ? 9 : impact ? Math.max(0, 22 - (t - 5.3) * 20) : 0);
       City.drawSky(c, t, { top: '#0a0716', mid: '#1a2050', bot: '#3a4a8a', fullMoon: false, noMoon: !moonUp });
-      if (moonUp) City.drawMoon(c, t, 1, W * 0.78, 150, 90);
-      if (t < 2.6) {
-        const shk = hits.some(h => t > h && t < h + 0.08) ? 12 : 0; c.save(); c.translate(rand(-shk, shk), rand(-shk, shk));
-        drawCineCity(c, city, baseY, '#10122a');
-        const n = hits.filter(h => t > h).length, side = n % 2 ? 1 : -1;
-        const ox = W * 0.55 + Math.sin(n * 1.7) * 120, oy = baseY - 60 - n * 30;
-        silhouette(c, o => drawCharAt(o, opp.def, ox, oy, oppScale, -1, { pose: 'hurt_air', anim: t, transformed: opp.transformed }), '#0a0a1a');
-        drawCharAt(c, a.def, ox - side * 120, oy + 10, 2.0, side, { pose: ['punch', 'kick', 'punch2', 'heavy', 'uppercut', 'kick'][n % 6], anim: t, transformed: false, gauge: 100 });
-        speedLines(c, t, ox, oy - 60, 'rgba(200,230,255,0.4)');
-        for (const h of hits) if (t > h && t < h + 0.12) { c.save(); c.globalCompositeOperation = 'lighter'; glowCircle(c, ox, oy - 70, 90, 'rgba(200,230,255,0.9)', 'rgba(0,0,0,0)'); c.restore(); }
-        c.restore();
-        caption(c, 'Sorry about the buildings. Hold still.', t, 0.05, 0.85, '#dfe8ff');
-        if (n) bigText(c, n + ' HITS', 160, 120, 44, '#ffd35a', '#000');
-      } else if (t < 3.3) {
-        // uppercut sends them into the sky
-        const k = ease.out(seg(t, 2.6, 3.2));
-        drawCineCity(c, city, baseY, '#10122a');
-        silhouette(c, o => drawCharAt(o, opp.def, W * 0.55, lerp(baseY - 200, 120, k), oppScale, -1, { pose: 'hurt_air', anim: t, transformed: opp.transformed }), '#0a0a1a');
-        drawCharAt(c, a.def, W * 0.5, baseY - 20, 2.2, 1, { pose: 'uppercut', anim: t, transformed: false, gauge: 100 });
-        speedLines(c, t, W * 0.55, 200, 'rgba(200,230,255,0.5)');
-      } else if (moonUp) {
-        // he glances at the moon... one giant fist
-        drawCineCity(c, city, baseY, '#10122a');
-        if (t < 4.4) {
-          const k = seg(t, 3.3, 4.2);
-          c.save(); c.translate(W * 0.35, H * 0.7); c.scale(3.4, 3.4); drawEricHuman(c, { pose: 'idle', anim: t, eyeRed: k }); c.restore();
-          c.fillStyle = `rgba(120,0,0,${0.25 * k})`; c.fillRect(0, 0, W, H);
-          caption(c, '...the moon.', t, 3.4, 4.3, '#ff9a8a');
-        } else {
-          const k = ease.in(seg(t, 4.4, 4.8));
-          silhouette(c, o => drawCharAt(o, opp.def, W * 0.55, lerp(120, baseY - 20, k), oppScale, -1, { pose: 'hurt_air', anim: t, transformed: opp.transformed }), '#0a0a1a');
-          c.save(); c.translate(W * 0.55, lerp(-500, baseY - 180, k)); c.fillStyle = '#5b3a22'; c.strokeStyle = '#2a1608'; c.lineWidth = 4;
-          c.beginPath(); c.moveTo(-90, -600); c.lineTo(90, -600); c.lineTo(110, 0); c.quadraticCurveTo(0, 90, -110, 0); c.closePath(); c.fill(); c.stroke();
-          for (let i = -2; i <= 2; i++) { c.fillStyle = '#c89968'; c.beginPath(); c.ellipse(i * 40, 40, 20, 34, 0, 0, Math.PI * 2); c.fill(); c.stroke(); } c.restore();
-          if (t > 4.8) { flashAt(c, t, 4.8, 5.2, '#fff'); for (const b of city) b.dead = true; }
-          if (t > 5.0) titleSlam(c, 'MOONLIGHT RUSH', 'HE LOOKED AT THE MOON', t, 5.1, '#ffd35a', 96);
-        }
-      } else {
-        // full-power ki wave into the night sky
-        drawCineCity(c, city, baseY, '#10122a');
-        const k = seg(t, 4.2, 5.4);
-        drawCharAt(c, a.def, W * 0.3, baseY - 10, 2.4, 1, { pose: 'cast', anim: t, transformed: false, gauge: 100 });
-        if (t < 4.2) { c.save(); c.globalCompositeOperation = 'lighter'; glowCircle(c, W * 0.3 + 60, baseY - 190, 40 + 60 * seg(t, 3.3, 4.2), 'rgba(160,220,255,1)', 'rgba(0,0,0,0)'); c.restore(); caption(c, 'Lunar... WAVE!', t, 3.35, 4.2, '#bfe4ff'); }
-        else {
-          c.save(); c.globalCompositeOperation = 'lighter';
-          c.strokeStyle = 'rgba(140,210,255,0.8)'; c.lineWidth = 90; c.beginPath(); c.moveTo(W * 0.3 + 60, baseY - 190); c.lineTo(W * 0.55, 120 - 400 * k); c.stroke();
-          c.strokeStyle = '#ffffff'; c.lineWidth = 30; c.stroke(); c.restore();
-          silhouette(c, o => drawCharAt(o, opp.def, W * 0.55, 120 - 400 * k, oppScale, -1, { pose: 'hurt_air', anim: t, transformed: opp.transformed }), '#0a0a1a');
-          if (t > 5.2) titleSlam(c, 'MOONLIGHT RUSH', `${opp.def.name} SENT TO THE MOON`, t, 5.3, '#8fd3ff', 96);
-        }
+      if (moonUp) City.drawMoon(c, t, 1, W * 0.78, 150 + camY * 0.25, 90);
+      if (impact) for (const b of city) b.dead = true;
+      const scroll = Math.min(t, 2.3) * 300;
+      c.save(); c.translate(0, camY); for (const off of [0, W]) { c.save(); c.translate(-(scroll % W) + off, 0); drawCineCity(c, city, baseY, impact ? '#0a0e18' : '#10122a'); c.restore(); } c.restore();
+      const ey = baseY - 40 - lift * 0.2, gaze = moonUp ? seg(t, 4.3, 5.0) : 0;
+      const pose = t < 2.25 ? (n ? combo[n - 1] : 'dash') : t < 2.95 ? 'uppercut' : t < 3.5 ? 'jump' : t < 4.2 ? 'fall' : moonUp ? 'idle' : 'cast';
+      const s = moonUp ? lerp(2.3, 3.2, ease.inOut(gaze)) : 2.3;
+      if (t < 2.25) { c.globalAlpha = 0.3; cineChar(c, d, gh[0], ex - 70, ey, s, t, pose, { gauge: 100 }); c.globalAlpha = 0.15; cineChar(c, d, gh[1], ex - 140, ey, s, t, pose, { gauge: 100 }); c.globalAlpha = 1; speedLines(c, t, ex + 100, ey - 60, 'rgba(200,230,255,0.4)'); }
+      cineChar(c, d, v, ex, ey, s, t, pose, { gauge: 100, eyeRed: moonUp ? Math.max(0.7, gaze) : 0.7 });
+      for (const h of hits) if (t > h) { if (!fired.has(h)) { fired.add(h); fx.burst(ex + 170, ey - 70, 22, { color: ['#dfe8ff', '#8fd3ff', '#fff'], size: 8, speed: 520, life: 0.5, glow: true }); }
+        if (t < h + 0.14) { c.save(); c.globalCompositeOperation = 'lighter'; glowCircle(c, ex + 170, ey - 70, 100, 'rgba(200,230,255,0.9)', 'rgba(0,0,0,0)'); c.restore(); } }
+      fx.draw(c);
+      if (moonUp && t >= 4.3 && !impact) { c.fillStyle = `rgba(120,0,0,${0.25 * gaze})`; c.fillRect(0, 0, W, H); }
+      if (moonUp && t > 4.95) {
+        const k = ease.in(seg(t, 4.95, 5.3)), fy = lerp(-700, baseY - 240, k);
+        c.save(); c.translate(fistX, fy); c.fillStyle = '#5b3a22'; c.strokeStyle = '#2a1608'; c.lineWidth = 4;
+        c.beginPath(); c.moveTo(-90, -900); c.lineTo(90, -900); c.lineTo(110, 0); c.quadraticCurveTo(0, 90, -110, 0); c.closePath(); c.fill(); c.stroke();
+        for (let i = -2; i <= 2; i++) { c.fillStyle = '#c89968'; c.beginPath(); c.ellipse(i * 40, 40, 20, 34, 0, 0, Math.PI * 2); c.fill(); c.stroke(); } c.restore();
+        if (impact) { const r = seg(t, 5.3, 6.0); c.strokeStyle = `rgba(255,220,180,${1 - r})`; c.lineWidth = 10; c.beginPath(); c.ellipse(fistX, baseY - 20, r * 1000 + 1, r * 130 + 1, 0, 0, Math.PI * 2); c.stroke(); }
       }
+      if (!moonUp && t >= 4.3) {
+        const hx = ex + 46 * s, hy = ey - 80 * s;
+        if (t < 5.2) { c.save(); c.globalCompositeOperation = 'lighter'; glowCircle(c, hx, hy, 40 + 60 * seg(t, 4.3, 5.2), 'rgba(160,220,255,1)', 'rgba(0,0,0,0)'); c.restore(); }
+        else { const k = seg(t, 5.2, 6.2); c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(140,210,255,0.8)'; c.lineWidth = 90 * (1 - k * 0.3); c.beginPath(); c.moveTo(hx, hy); c.lineTo(W * 0.85, -200); c.stroke(); c.strokeStyle = '#ffffff'; c.lineWidth = 30; c.stroke(); c.restore(); }
+      }
+      c.restore();
+      caption(c, 'Sorry about the buildings. Hold still.', t, 0.05, 0.65, '#dfe8ff');
+      if (n && t < 2.4) bigText(c, n + ' HITS', 160, 120, 44, '#ffd35a', '#000');
+      if (moonUp) { caption(c, '...the moon.', t, 4.3, 5.1, '#ff9a8a'); if (t >= 5.3) flashAt(c, t, 5.3, 5.7, '#fff'); if (t > 5.6) titleSlam(c, 'MOONLIGHT RUSH', 'HE LOOKED AT THE MOON', t, 5.7, '#ffd35a', 96); }
+      else { caption(c, 'Lunar... WAVE!', t, 4.3, 5.2, '#bfe4ff'); if (t > 5.6) titleSlam(c, 'MOONLIGHT RUSH', 'LUNAR WAVE INTO THE NIGHT', t, 5.7, '#8fd3ff', 96); }
     },
   };
 }

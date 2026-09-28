@@ -21,6 +21,12 @@ function drawCharAt(c, def, x, y, s, facing, v) {
   def.draw(c, Object.assign({ pose: 'idle', anim: 0, transformed: false }, v));
   c.restore();
 }
+// Cinematics draw each fighter through ONE persistent view object, so the pixel renderer keeps
+// blending poses from frame to frame instead of restarting every frame.
+function cineChar(c, def, view, x, y, s, t, pose, extra, facing = 1) {
+  c.save(); c.translate(x, y); c.scale(s * facing, s); Object.assign(view, { pose, anim: t }, extra); def.draw(c, view); c.restore();
+}
+function cineShake(c, amt) { if (amt > 0.2) c.translate(rand(-amt, amt), rand(-amt, amt)); }
 function letterbox(c, amt = 1) {
   c.fillStyle = '#000';
   c.fillRect(0, 0, W, 64 * amt); c.fillRect(0, H - 64 * amt, W, 64 * amt);
@@ -119,152 +125,101 @@ function drawBigEye(c, t, open, iris, pupil, moonGlint = true, vein = 0) {
 //  ERIC — MOON ORB transformation
 // ============================================================
 function csEricTransform(f) {
-  const fx = new ParticleSystem();
+  const fx = new ParticleSystem(1800), d = f.def, vh = {}, va = {}, city = makeCineCity(14, 80, 240);
+  const roofY = H - 110, ex = W * 0.4, apeX = W * 0.46;
   return {
-    name: 'MOON ORB', dur: 4.6, fx,
-    cues: [[0, () => Sfx.charge(0.9)], [0.95, () => Sfx.whoosh()], [1.35, () => { Sfx.boom(); }], [1.75, () => Sfx.heartbeat()], [2.25, () => Sfx.heartbeat()], [2.8, () => Sfx.roar()], [3.5, () => Sfx.slam()]],
-    draw(c, t, cs) {
-      if (t < 1.6) {
-        City.drawSky(c, t, { fullMoon: false, noMoon: t > 1.35 });
-        const moonP = ease.out(seg(t, 1.35, 1.6));
-        if (t > 1.35) City.drawMoon(c, t, 1, W * 0.72, 140, 20 + moonP * 120);
-        c.fillStyle = '#0c0b1d'; c.fillRect(0, H - 120, W, 120);
-        const s = 3.2, ex = W * 0.4, ey = H + 70;
-        drawCharAt(c, f.def, ex, ey, s, 1, { pose: t < 0.9 ? 'charge' : 'cast', anim: t, transformed: false });
-        const hx = ex + 10 * s, hy = ey - 128 * s - 22;
-        if (t < 0.95) {
-          const r = 8 + 42 * ease.out(seg(t, 0, 0.8));
-          if (Math.random() < 0.9) converge(fx, hx, hy, pick(['#fff9d0', '#bfe4ff']), 3, 240);
-          c.globalCompositeOperation = 'lighter';
-          glowCircle(c, hx, hy, r * 3, 'rgba(255,250,210,0.6)', 'rgba(150,200,255,0)');
-          glowCircle(c, hx, hy, r, 'rgba(255,255,255,1)', 'rgba(255,250,210,0.8)');
-          c.globalCompositeOperation = 'source-over';
-        } else if (t < 1.35) {
-          const p = ease.in(seg(t, 0.95, 1.35));
-          const ox = lerp(hx, W * 0.72, p), oy = lerp(hy, 140, p);
-          fx.add({ x: ox, y: oy, life: 0.4, size: 16 * (1 - p) + 6, color: '#fff6c8', glow: true });
-          c.globalCompositeOperation = 'lighter';
-          glowCircle(c, ox, oy, 50 * (1 - p) + 18, 'rgba(255,255,255,1)', 'rgba(255,240,180,0)');
-          c.globalCompositeOperation = 'source-over';
-        }
-        fx.draw(c);
-        caption(c, "No full moon tonight? ...Then I'll make one.", t, 0.05, 1.3);
-        flashAt(c, t, 1.35, 1.6);
-      } else if (t < 2.7) {
-        const red = seg(t, 1.8, 2.5);
-        const beat = Math.max(Math.exp(-((t - 1.75) ** 2) * 200), Math.exp(-((t - 2.25) ** 2) * 200));
-        c.fillStyle = '#0a0612'; c.fillRect(0, 0, W, H);
-        c.save(); c.translate(W / 2, H / 2); c.scale(1 + beat * 0.08, 1 + beat * 0.08); c.translate(-W / 2, -H / 2);
-        c.fillStyle = '#e0b07a'; c.fillRect(0, 0, W, H);
-        drawBigEye(c, t, 1, [`rgb(${lerp(120, 255, red)},${lerp(80, 30, red)},${lerp(40, 20, red)})`, `rgb(${lerp(70, 160, red)},${lerp(40, 0, red)},20)`], lerp(60, 16, red), true, red);
-        c.restore();
-        vignette(c, 0.9, '40,0,0');
-        if (beat > 0.3) { c.globalAlpha = beat; bigText(c, 'BA-DUMP', W / 2 + (t > 2 ? 260 : -260), H / 2 - 200, 70, '#ff3b3b'); c.globalAlpha = 1; }
-      } else {
-        const p = seg(t, 2.7, 3.7);
-        City.drawSky(c, t, { top: '#10060a', mid: '#2a0a16', bot: '#4a1020', fullMoon: false, noMoon: true });
-        City.drawMoon(c, t, 1, W / 2, 330, 270);
-        const shakeX = t > 2.8 && t < 4 ? rand(-10, 10) : 0;
-        c.save(); c.translate(shakeX, shakeX * 0.6);
-        const hs = lerp(3, 0.5, ease.in(p));
-        if (p < 1) silhouette(c, o => drawCharAt(o, f.def, W / 2, H + 20, hs * 1.3, 1, { pose: 'charge', anim: t, transformed: false }), '#050205', 1 - p);
-        const S = lerp(1.2, 4.6, ease.out(p));
-        silhouette(c, o => drawCharAt(o, f.def, W / 2 - 40, H + 30, S, 1, { pose: 'charge', anim: t, transformed: true, roar: 1 }), '#050205', ease.out(p));
-        if (p > 0.3) {
-          c.globalCompositeOperation = 'lighter';
-          for (const ex of [13, 23]) glowCircle(c, W / 2 - 40 + ex * S, H + 30 - 101 * S, 14 + S * 3, 'rgba(255,30,30,1)', 'rgba(255,0,0,0)');
-          c.globalCompositeOperation = 'source-over';
-        }
-        if (Math.random() < 0.8) fx.burst(W / 2 + rand(-300, 300), H - rand(0, 400), 2, { color: ['#3a2414', '#5b3a22'], size: 8, speed: 400, life: 0.8, shape: 'rect' });
-        fx.draw(c);
-        c.restore();
-        if (t > 2.8 && t < 3.6) speedLines(c, t, W / 2, H / 2, 'rgba(255,220,220,0.35)');
-        titleSlam(c, 'MOONKAI', 'GREAT APE FORM', t, 3.5, '#ffd35a', 130);
-        flashAt(c, t, 2.7, 2.9, '#ff2a2a');
+    name: 'MOON ORB', dur: 5.4, fx,
+    cues: [[0, () => Sfx.charge(0.9)], [1.0, () => Sfx.whoosh()], [1.5, () => Sfx.boom()], [2.3, () => Sfx.heartbeat()], [2.8, () => Sfx.heartbeat()], [3.2, () => Sfx.roar()], [3.9, () => Sfx.slam()]],
+    draw(c, t) {
+      // one continuous scene on the rooftop: he makes a moon, the moon takes hold of him, the ape rises out of him
+      const dusk = ease.inOut(seg(t, 1.6, 3.3)), beat = Math.max(Math.exp(-((t - 2.3) ** 2) * 200), Math.exp(-((t - 2.8) ** 2) * 200));
+      c.save(); cineShake(c, t > 3.2 && t < 4.6 ? 7 * (1 - seg(t, 3.2, 4.6)) + 1 : beat * 3);
+      City.drawSky(c, t, { fullMoon: false, noMoon: true });
+      if (dusk > 0) { const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#2a0610'); g.addColorStop(1, '#7a1a20'); c.globalAlpha = dusk * 0.6; c.fillStyle = g; c.fillRect(0, 0, W, H); c.globalAlpha = 1; }
+      const mk = ease.out(seg(t, 1.5, 2.2)), md = ease.inOut(seg(t, 1.7, 3.4)), mx = lerp(W * 0.72, W * 0.5, md), my = lerp(140, 300, md);
+      if (t > 1.5) City.drawMoon(c, t, 1, mx, my, 20 + mk * 110 + md * 140);
+      drawCineCity(c, city, roofY, '#0c0b1d'); c.fillStyle = '#0c0b1d'; c.fillRect(0, roofY, W, H - roofY);
+      const s = lerp(3, 3.5, ease.inOut(seg(t, 0.2, 3.2))), hx = ex + 10 * s, hy = roofY - 128 * s;
+      // moonlight pours down onto him
+      const pour = seg(t, 1.7, 2.4) * (1 - seg(t, 3.1, 3.5));
+      if (pour > 0) { c.save(); c.globalCompositeOperation = 'lighter'; const g = c.createLinearGradient(0, my, 0, roofY); g.addColorStop(0, `rgba(255,245,210,${0.45 * pour})`); g.addColorStop(1, `rgba(255,245,210,0)`); c.fillStyle = g;
+        c.beginPath(); c.moveTo(mx - 40, my); c.lineTo(mx + 40, my); c.lineTo(ex + 160, roofY); c.lineTo(ex - 100, roofY); c.closePath(); c.fill(); c.restore(); }
+      // the Power Ball: gathers at his hand, is thrown, and becomes the moon
+      if (t < 0.95) {
+        const r = 8 + 42 * ease.out(seg(t, 0, 0.8));
+        if (Math.random() < 0.9) converge(fx, hx, hy, pick(['#fff9d0', '#bfe4ff']), 3, 240);
+        c.save(); c.globalCompositeOperation = 'lighter'; glowCircle(c, hx, hy, r * 3, 'rgba(255,250,210,0.6)', 'rgba(150,200,255,0)'); glowCircle(c, hx, hy, r, 'rgba(255,255,255,1)', 'rgba(255,250,210,0.8)'); c.restore();
+      } else if (t < 1.5) {
+        const p = ease.in(seg(t, 0.95, 1.5)), ox = lerp(hx, W * 0.72, p), oy = lerp(hy, 140, p);
+        fx.add({ x: ox, y: oy, life: 0.4, size: 16 * (1 - p) + 6, color: '#fff6c8', glow: true });
+        c.save(); c.globalCompositeOperation = 'lighter'; glowCircle(c, ox, oy, 50 * (1 - p) + 18, 'rgba(255,255,255,1)', 'rgba(255,240,180,0)'); c.restore();
       }
+      // human Eric
+      const hA = 1 - ease.in(seg(t, 3.0, 3.5));
+      if (hA > 0) { c.globalAlpha = hA; cineChar(c, d, vh, ex, roofY + 6, s * (1 + (1 - hA) * 0.12), t, t < 0.4 ? 'idle' : t < 1.0 ? 'charge' : t < 1.5 ? 'cast' : 'kichar', { transformed: false, gauge: t > 1.5 ? 100 : 0, eyeRed: seg(t, 1.8, 2.9) }); c.globalAlpha = 1; }
+      // MOONKAI
+      const p = seg(t, 3.1, 3.9);
+      if (p > 0) { c.globalAlpha = ease.out(p); cineChar(c, d, va, apeX, roofY + 6, lerp(2.0, 3.5, ease.out(p)), t, 'charge', { transformed: true, roar: 1, eyeGlow: 1 }); c.globalAlpha = 1; }
+      if (t > 3.15) { const k = seg(t, 3.2, 3.9); c.strokeStyle = `rgba(255,140,100,${1 - k})`; c.lineWidth = 8; c.beginPath(); c.ellipse(apeX, roofY, k * 900 + 1, k * 90 + 1, 0, 0, Math.PI * 2); c.stroke(); }
+      if (t > 3.15 && t < 3.7) fx.burst(apeX + rand(-260, 260), roofY, 3, { color: ['#3a2414', '#5b3a22'], size: 9, speed: 500, life: 0.9, shape: 'rect', g: 900 });
+      fx.draw(c);
+      if (t > 3.2 && t < 3.9) speedLines(c, t, apeX, H / 2, 'rgba(255,220,220,0.3)');
+      c.restore();
+      caption(c, "No full moon tonight? ...Then I'll make one.", t, 0.05, 1.4);
+      flashAt(c, t, 1.5, 1.85);
+      flashAt(c, t, 3.15, 3.5, '#ff2a2a');
+      titleSlam(c, 'MOONKAI', 'GREAT APE FORM', t, 3.9, '#ffd35a', 130);
     },
   };
 }
 
-// ============================================================
-//  ERIC — LUNAR CATACLYSM ultimate
-// ============================================================
+// LUNAR CATACLYSM: one continuous shot. The camera pushes in on the charging maw, then pulls back as the beam sweeps the skyline.
 function csEricUlt(f, opp) {
-  const fx = new ParticleSystem(2500);
-  const city = makeCineCity(); const baseY = H - 20;
-  const ax = 230, ay = H + 20, S = 4.1;
-  const mouth = () => [ax + 25 * S, ay - 86 * S];
+  const fx = new ParticleSystem(2500), d = f.def, va = {}, city = makeCineCity(), baseY = H - 20, ax = 230, ay = H + 20, S = 4.1;
+  const mx = ax + 25 * S, my = ay - 86 * S;
   let exploded = 0;
   return {
     name: 'LUNAR CATACLYSM', dur: 7.2, fx,
     cues: [[0.1, () => Sfx.roar()], [0.3, () => Sfx.charge(1.9)], [2.1, () => Sfx.slam()], [2.55, () => Sfx.slam()], [3.0, () => Sfx.beam(2.2)], [5.25, () => Sfx.boom()]],
-    draw(c, t, cs) {
-      const [mx, my] = mouth();
-      if (t < 2.0 || (t >= 3.0 && t < 5.3)) {
-        City.drawSky(c, t, { top: '#0a0716', mid: '#2a1030', bot: '#51203a', fullMoon: false, noMoon: true });
-        City.drawMoon(c, t, 1, W * 0.62, 250, 220);
-        const shk = t >= 3 ? 8 : seg(t, 1, 2) * 4;
-        c.save(); c.translate(rand(-shk, shk), rand(-shk, shk));
-        // beam sweep
-        let ang = 0;
-        if (t >= 3.0) {
-          const p = seg(t, 3.0, 5.0);
-          ang = lerp(-0.06, 0.2, ease.inOut(p));
-          // explode buildings under the beam's reach
-          for (const b of city) {
-            const bx = b.x + b.w / 2;
-            if (!b.dead && bx > mx + 60 && (bx - mx) < p * 1400) {
-              b.dead = true; exploded++;
-              fx.burst(bx, baseY - b.h * 0.6, 40, { color: ['#ffe28a', '#ff8a1a', '#ff3b1a', '#fff'], size: 18, speed: 520, life: 1.1, glow: true, drag: 0.03 });
-              fx.burst(bx, baseY - b.h * 0.6, 16, { color: ['#333', '#555'], size: 12, speed: 420, life: 1.4, g: 500, shape: 'rect' });
-              if (exploded % 2) Sfx.boom();
-            }
-          }
-        }
-        drawCineCity(c, city, baseY);
-        fx.draw(c);
-        drawCharAt(c, f.def, ax, ay, S, 1, { pose: 'idle', anim: t, transformed: true, roar: t >= 3 ? 1 : seg(t, 0.2, 1.2), mouthGlow: t >= 3 ? 1.4 : seg(t, 0.3, 2) });
-        if (t < 2 && Math.random() < 0.95) converge(fx, mx, my, pick(['#fff6b0', '#ffd35a', '#ffffff']), 4, 500);
-        if (t >= 3.0) {
-          const len = 1700, wdt = 70 + Math.sin(t * 60) * 8;
-          c.save(); c.translate(mx, my); c.rotate(ang);
-          c.globalCompositeOperation = 'lighter';
-          const g = c.createLinearGradient(0, -wdt, 0, wdt);
-          g.addColorStop(0, 'rgba(255,170,40,0)'); g.addColorStop(0.3, 'rgba(255,210,90,0.8)'); g.addColorStop(0.5, 'rgba(255,255,255,1)'); g.addColorStop(0.7, 'rgba(255,210,90,0.8)'); g.addColorStop(1, 'rgba(255,170,40,0)');
-          c.fillStyle = g; c.fillRect(0, -wdt, len, wdt * 2);
-          glowCircle(c, 0, 0, 120, 'rgba(255,255,230,1)', 'rgba(255,200,80,0)');
-          for (let i = 0; i < 6; i++) { fx.add({ x: mx + Math.cos(ang) * rand(0, 1400), y: my + Math.sin(ang) * rand(0, 1400) + rand(-50, 50), vx: rand(-50, 50), vy: rand(-80, 80), life: 0.3, size: rand(4, 10), color: '#fff6c0', glow: true }); }
-          c.restore();
-        }
-        c.restore();
-        caption(c, "This city's gonna need a new skyline.", t, 0.2, 1.9);
-        flashAt(c, t, 3.0, 3.25);
-      } else if (t < 3.0) {
-        // extreme close-up of the ape's charging maw
-        c.fillStyle = '#12060a'; c.fillRect(0, 0, W, H);
-        const CS = 12, sh = t > 2.5 ? 14 : 5;
-        c.save(); c.translate(rand(-sh, sh), rand(-sh, sh));
-        drawCharAt(c, f.def, W / 2 - 25 * CS, H / 2 + 60 + 86 * CS, CS, 1, { pose: 'idle', anim: t, transformed: true, roar: 1, mouthGlow: 1 + Math.sin(t * 40) * 0.15 });
-        c.restore();
-        speedLines(c, t, W / 2, H / 2 + 60, 'rgba(255,240,180,0.6)', 60);
-        if (t > 2.1) { const s = lerp(1.6, 1, ease.out(seg(t, 2.1, 2.3))); c.save(); c.translate(W * 0.3, 150); c.scale(s, s); bigText(c, 'LUNAR...', 0, 0, 90, '#fff6c0', '#3a1a00'); c.restore(); }
-        if (t > 2.55) { const s = lerp(2, 1, ease.out(seg(t, 2.55, 2.75))); c.save(); c.translate(W * 0.64, H - 150); c.scale(s, s); bigText(c, 'CATACLYSM!!', 0, 0, 110, '#ffd35a', '#3a1a00'); c.restore(); }
-      } else {
-        // aftermath
-        const p = seg(t, 5.3, 7.2);
-        City.drawSky(c, t, { top: '#140808', mid: '#3a1210', bot: '#7a2a10', fullMoon: false, noMoon: true });
-        City.drawMoon(c, t, 1, W * 0.62, 250, 220);
-        drawCineCity(c, city, baseY);
-        if (Math.random() < 0.9) fx.add({ x: rand(0, W), y: baseY - rand(0, 60), vx: rand(-10, 30), vy: rand(-60, -20), life: rand(2, 3), size: rand(14, 30), color: 'rgba(30,20,20,0.45)', grow: 14 });
-        if (Math.random() < 0.9) fx.add({ x: rand(300, W), y: baseY - rand(0, 80), vx: rand(-10, 10), vy: rand(-120, -40), life: 0.7, size: rand(5, 10), color: pick(['#ff8a1a', '#ffcc33']), glow: true, grow: -6 });
-        fx.draw(c);
-        silhouette(c, o => drawCharAt(o, f.def, ax, ay, S, 1, { pose: 'charge', anim: t, transformed: true, roar: 1 }), '#0a0406');
-        c.globalCompositeOperation = 'lighter';
-        for (const ex of [13, 23]) glowCircle(c, ax + ex * S, ay - 101 * S, 26, 'rgba(255,30,30,1)', 'rgba(255,0,0,0)');
-        c.globalCompositeOperation = 'source-over';
-        titleSlam(c, 'LUNAR CATACLYSM', `${opp.def.name} TAKES A DIRECT HIT`, t, 5.5, '#ffd35a', 100);
-        flashAt(c, t, 5.3, 5.9);
+    draw(c, t) {
+      const zoom = t < 3.0 ? 1 + 0.3 * ease.inOut(seg(t, 0.3, 2.9)) : lerp(1.3, 1, ease.inOut(seg(t, 3.0, 5.2)));
+      const fire = t >= 3.0 && t < 5.3, after = t >= 5.3;
+      City.drawSky(c, t, { top: after ? '#140808' : '#0a0716', mid: after ? '#3a1210' : '#2a1030', bot: after ? '#7a2a10' : '#51203a', fullMoon: false, noMoon: true });
+      c.save(); cineShake(c, fire ? 8 : seg(t, 1, 3) * 6);
+      c.translate(mx, my); c.scale(zoom, zoom); c.translate(-mx, -my);
+      City.drawMoon(c, t, 1, W * 0.62, 250, 220);
+      let ang = 0;
+      if (fire) {
+        const p = seg(t, 3.0, 5.0); ang = lerp(-0.06, 0.2, ease.inOut(p));
+        for (const b of city) { const bx = b.x + b.w / 2;
+          if (!b.dead && bx > mx + 60 && (bx - mx) < p * 1400) { b.dead = true; exploded++;
+            fx.burst(bx, baseY - b.h * 0.6, 40, { color: ['#ffe28a', '#ff8a1a', '#ff3b1a', '#fff'], size: 18, speed: 520, life: 1.1, glow: true, drag: 0.03 });
+            fx.burst(bx, baseY - b.h * 0.6, 16, { color: ['#333', '#555'], size: 12, speed: 420, life: 1.4, g: 500, shape: 'rect' });
+            if (exploded % 2) Sfx.boom(); } }
       }
+      if (after) for (const b of city) b.dead = true;
+      drawCineCity(c, city, baseY, after ? '#140605' : '#12112a');
+      if (t < 3.0 && Math.random() < 0.95) converge(fx, mx, my, pick(['#fff6b0', '#ffd35a', '#ffffff']), 4, 500);
+      if (after) { if (Math.random() < 0.9) fx.add({ x: rand(0, W), y: baseY - rand(0, 60), vx: rand(-10, 30), vy: rand(-60, -20), life: rand(2, 3), size: rand(14, 30), color: 'rgba(30,20,20,0.45)', grow: 14 });
+        if (Math.random() < 0.9) fx.add({ x: rand(300, W), y: baseY - rand(0, 80), vx: rand(-10, 10), vy: rand(-120, -40), life: 0.7, size: rand(5, 10), color: pick(['#ff8a1a', '#ffcc33']), glow: true, grow: -6 }); }
+      fx.draw(c);
+      const roar = after ? 1 : t >= 3 ? 1 : seg(t, 0.2, 1.2), glow = after ? Math.max(0, 1 - seg(t, 5.3, 6.0)) : t >= 3 ? 1.4 : seg(t, 0.3, 2) + Math.sin(t * 40) * 0.05 * seg(t, 1.5, 3);
+      cineChar(c, d, va, ax, ay, S, t, after ? 'charge' : 'idle', { transformed: true, roar, mouthGlow: glow, eyeGlow: 1 });
+      if (fire) {
+        const len = 1700, wdt = 70 + Math.sin(t * 60) * 8;
+        c.save(); c.translate(mx, my); c.rotate(ang); c.globalCompositeOperation = 'lighter';
+        const g = c.createLinearGradient(0, -wdt, 0, wdt);
+        g.addColorStop(0, 'rgba(255,170,40,0)'); g.addColorStop(0.3, 'rgba(255,210,90,0.8)'); g.addColorStop(0.5, 'rgba(255,255,255,1)'); g.addColorStop(0.7, 'rgba(255,210,90,0.8)'); g.addColorStop(1, 'rgba(255,170,40,0)');
+        c.fillStyle = g; c.fillRect(0, -wdt, len, wdt * 2); glowCircle(c, 0, 0, 120, 'rgba(255,255,230,1)', 'rgba(255,200,80,0)');
+        for (let i = 0; i < 6; i++) fx.add({ x: mx + Math.cos(ang) * rand(0, 1400), y: my + Math.sin(ang) * rand(0, 1400) + rand(-50, 50), vx: rand(-50, 50), vy: rand(-80, 80), life: 0.3, size: rand(4, 10), color: '#fff6c0', glow: true });
+        c.restore();
+      }
+      c.restore();
+      caption(c, "This city's gonna need a new skyline.", t, 0.2, 1.9);
+      if (t > 2.1 && t < 3.3) { const s = lerp(1.6, 1, ease.out(seg(t, 2.1, 2.3))); c.save(); c.translate(W * 0.3, 150); c.scale(s, s); c.globalAlpha = 1 - seg(t, 3.0, 3.3); bigText(c, 'LUNAR...', 0, 0, 90, '#fff6c0', '#3a1a00'); c.restore(); }
+      if (t > 2.55 && t < 3.4) { const s = lerp(2, 1, ease.out(seg(t, 2.55, 2.75))); c.save(); c.translate(W * 0.64, H - 150); c.scale(s, s); c.globalAlpha = 1 - seg(t, 3.0, 3.4); bigText(c, 'CATACLYSM!!', 0, 0, 110, '#ffd35a', '#3a1a00'); c.restore(); }
+      flashAt(c, t, 3.0, 3.3);
+      if (after) { flashAt(c, t, 5.3, 5.9); titleSlam(c, 'LUNAR CATACLYSM', 'THE SKYLINE IS GONE', t, 5.6, '#ffd35a', 100); }
     },
   };
 }
@@ -273,37 +228,39 @@ function csEricUlt(f, opp) {
 //  KIRA — PHOENIX ASCENSION transformation
 // ============================================================
 function csKiraTransform(f) {
-  const fx = new ParticleSystem();
+  const fx = new ParticleSystem(1800), d = f.def, vk = {};
+  const gy = H - 90, cx = W / 2;
   return {
-    name: 'PHOENIX ASCENSION', dur: 4.0, fx,
-    cues: [[0, () => Sfx.fire()], [1.2, () => Sfx.charge(1.1)], [2.3, () => { Sfx.screech(); Sfx.boom(); }]],
+    name: 'PHOENIX ASCENSION', dur: 4.8, fx,
+    cues: [[0, () => Sfx.fire()], [1.2, () => Sfx.charge(1.1)], [2.4, () => { Sfx.screech(); Sfx.boom(); }]],
     draw(c, t) {
-      const heat = seg(t, 0, 2.3);
+      // she kneels in the embers, stands into a pillar of fire, and bursts into the sky on wings of flame
+      const heat = ease.inOut(seg(t, 0, 2.4)), zoom = 1 + 0.1 * ease.inOut(seg(t, 0, 4));
       const g = c.createLinearGradient(0, 0, 0, H);
-      g.addColorStop(0, `rgb(${lerp(10, 60, heat)},${lerp(6, 14, heat)},${lerp(20, 8, heat)})`);
-      g.addColorStop(1, `rgb(${lerp(40, 200, heat)},${lerp(10, 60, heat)},10)`);
+      g.addColorStop(0, `rgb(${lerp(10, 60, heat)},${lerp(6, 14, heat)},${lerp(20, 8, heat)})`); g.addColorStop(1, `rgb(${lerp(40, 200, heat)},${lerp(10, 60, heat)},10)`);
       c.fillStyle = g; c.fillRect(0, 0, W, H);
-      // cracked, glowing ground
-      c.fillStyle = '#140806'; c.fillRect(0, H - 90, W, 90);
+      c.save(); cineShake(c, t > 2.4 && t < 3.2 ? 6 * (1 - seg(t, 2.4, 3.2)) : 0);
+      c.translate(cx, gy); c.scale(zoom, zoom); c.translate(-cx, -gy);
+      c.fillStyle = '#140806'; c.fillRect(-200, gy, W + 400, H - gy + 200);
       c.strokeStyle = `rgba(255,140,30,${0.3 + heat * 0.7})`; c.lineWidth = 3;
-      for (let i = 0; i < 9; i++) { c.beginPath(); c.moveTo(W / 2, H - 70); c.lineTo(W / 2 + (i - 4) * 90, H - 40 + (i % 2) * 20); c.lineTo(W / 2 + (i - 4) * 170, H); c.stroke(); }
-      const rise = ease.inOut(seg(t, 1.2, 2.3)) * 90;
-      const cx = W / 2, cy = H - 60 - rise;
+      for (let i = 0; i < 9; i++) { c.beginPath(); c.moveTo(cx, gy + 20); c.lineTo(cx + (i - 4) * 90, gy + 50 + (i % 2) * 20); c.lineTo(cx + (i - 4) * 170, gy + 90); c.stroke(); }
+      const lift = ease.out(seg(t, 2.4, 3.5)) * 130, cy = gy - lift;
       if (Math.random() < 0.9) fx.add({ x: rand(0, W), y: H, vx: rand(-20, 20), vy: rand(-260, -120), life: rand(1, 2), size: rand(2, 5), color: pick(['#ffcc33', '#ff6a1a']), glow: true });
-      if (t > 1.2 && t < 2.5) for (let i = 0; i < 6; i++) {
-        const a = t * 9 + i * 1.05, r = 190 - seg(t, 1.2, 2.3) * 60;
-        fx.add({ x: cx + Math.cos(a) * r, y: cy - 150 + Math.sin(a) * r * 0.5 + rand(-100, 100), vx: -Math.sin(a) * 300, vy: Math.cos(a) * 150 - 100, life: 0.5, size: rand(8, 16), color: pick(['#ffcc33', '#ff7a1a', '#ff3b1a']), glow: true, grow: -10 });
-      }
+      const pillar = seg(t, 1.1, 1.8) * (1 - seg(t, 2.4, 2.9));
+      if (pillar > 0) { c.save(); c.globalCompositeOperation = 'lighter'; const pg = c.createLinearGradient(cx - 110, 0, cx + 110, 0); pg.addColorStop(0, 'rgba(255,90,20,0)'); pg.addColorStop(0.5, `rgba(255,210,90,${0.7 * pillar})`); pg.addColorStop(1, 'rgba(255,90,20,0)'); c.fillStyle = pg; c.fillRect(cx - 110, -50, 220, gy + 50); c.restore(); }
+      if (t > 1.2 && t < 2.5) for (let i = 0; i < 6; i++) { const a = t * 9 + i * 1.05, r = 190 - seg(t, 1.2, 2.3) * 60;
+        fx.add({ x: cx + Math.cos(a) * r, y: cy - 150 + Math.sin(a) * r * 0.5 + rand(-100, 100), vx: -Math.sin(a) * 300, vy: Math.cos(a) * 150 - 100, life: 0.5, size: rand(8, 16), color: pick(['#ffcc33', '#ff7a1a', '#ff3b1a']), glow: true, grow: -10 }); }
+      if (t > 2.4 && t < 2.55) fx.burst(cx, cy - 200, 50, { color: ['#ffcc33', '#ff7a1a', '#fff2c0'], size: 10, speed: 700, glow: true, life: 1 });
+      c.save(); c.globalCompositeOperation = 'lighter'; const wg = t > 2.4 ? ease.back(seg(t, 2.4, 3.0)) : 0;
+      glowCircle(c, cx, cy - 180, 200 + wg * 150, `rgba(255,150,40,${0.2 + heat * 0.4})`, 'rgba(255,60,0,0)'); c.restore();
       fx.draw(c);
-      const wings = t > 2.3 ? ease.back(seg(t, 2.3, 2.8)) * 0.8 : 0;
-      c.globalCompositeOperation = 'lighter';
-      glowCircle(c, cx, cy - 180, 200 + wings * 150, `rgba(255,150,40,${0.2 + heat * 0.4})`, 'rgba(255,60,0,0)');
-      c.globalCompositeOperation = 'source-over';
-      drawCharAt(c, f.def, cx, cy, 3, 1, { pose: t < 1.2 ? 'kneel' : t < 2.3 ? 'charge' : 'victory', anim: t, transformed: t > 2.3, wings });
-      caption(c, "Not yet... I'm not done burning.", t, 0.1, 1.4);
-      if (t > 2.3 && t < 3) speedLines(c, t, cx, cy - 180, 'rgba(255,230,150,0.6)');
-      titleSlam(c, 'PHOENIX ASCENSION', 'FLIGHT  •  REGENERATION  •  FEATHER STORM', t, 2.9, '#ff9a1a', 96);
-      flashAt(c, t, 2.3, 2.6, '#fff2c0');
+      const wings = t > 2.4 ? wg * 0.9 : 0;
+      cineChar(c, d, vk, cx, cy, 3, t, t < 1.2 ? 'kneel' : t < 2.4 ? 'charge' : 'victory', { transformed: t > 2.4, wings });
+      c.restore();
+      caption(c, "Not yet... I'm not done burning.", t, 0.1, 1.5);
+      if (t > 2.4 && t < 3.2) speedLines(c, t, cx, H * 0.4, 'rgba(255,230,150,0.5)');
+      titleSlam(c, 'PHOENIX ASCENSION', 'FLIGHT  •  REGENERATION  •  FEATHER STORM', t, 3.1, '#ff9a1a', 96);
+      flashAt(c, t, 2.4, 2.75, '#fff2c0');
     },
   };
 }
@@ -337,72 +294,59 @@ function drawFirebird(c, x, y, s, ang, t) {
   c.globalCompositeOperation = 'source-over';
 }
 function csKiraUlt(f, opp) {
-  const fx = new ParticleSystem(2500);
-  const city = makeCineCity(16, 80, 220); const baseY = H - 20;
-  const target = [W * 0.3, baseY];
+  const fx = new ParticleSystem(2500), d = f.def, vk = {};
+  const city = makeCineCity(16, 80, 220), baseY = H - 20, target = [W * 0.3, baseY];
   return {
     name: 'SUPERNOVA REBIRTH', dur: 7.2, fx,
-    cues: [[0, () => Sfx.fire()], [0.2, () => Sfx.charge(1.2)], [1.5, () => Sfx.boom()], [3.0, () => Sfx.screech()], [4.3, () => { Sfx.boom(); Sfx.boom(0.15); }], [5.4, () => Sfx.fire()]],
+    cues: [[0, () => Sfx.fire()], [0.35, () => Sfx.charge(1.2)], [1.5, () => Sfx.boom()], [3.0, () => Sfx.screech()], [4.3, () => { Sfx.boom(); Sfx.boom(0.15); }], [5.4, () => Sfx.fire()]],
     draw(c, t) {
       if (t < 1.5) {
-        City.drawSky(c, t, { fullMoon: false });
-        drawCineCity(c, city, baseY);
-        const p = ease.in(seg(t, 0.35, 1.4));
-        const kx = W / 2, ky = lerp(baseY, -250, p);
+        // she launches straight up out of the city, trailing fire
+        City.drawSky(c, t, { fullMoon: false }); drawCineCity(c, city, baseY);
+        const crouch = ease.inOut(seg(t, 0.1, 0.4)), p = ease.in(seg(t, 0.4, 1.45)), kx = W / 2, ky = lerp(baseY + crouch * 6, -260, p);
         for (let i = 0; i < 5; i++) fx.add({ x: kx + rand(-14, 14), y: ky - 40 + rand(0, 60), vx: rand(-40, 40), vy: rand(40, 160), life: rand(0.5, 1), size: rand(8, 18), color: pick(['#ffcc33', '#ff7a1a', '#ff3b1a']), glow: true, grow: -8 });
+        c.save(); c.globalCompositeOperation = 'lighter'; const tg = c.createLinearGradient(0, ky, 0, baseY); tg.addColorStop(0, 'rgba(255,200,80,0.7)'); tg.addColorStop(1, 'rgba(255,90,20,0)'); c.fillStyle = tg; c.fillRect(kx - 40, ky, 80, baseY - ky); c.restore();
         fx.draw(c);
-        drawCharAt(c, f.def, kx, ky, 2, 1, { pose: t < 0.35 ? 'kneel' : 'charge', anim: t, transformed: true });
+        cineChar(c, d, vk, kx, ky, 2.4, t, t < 0.4 ? 'kneel' : 'charge', { transformed: true, wings: 0.6 * p });
         caption(c, 'Burn bright...', t, 0.05, 1.3);
       } else if (t < 3.0) {
-        const p = seg(t, 1.5, 3.0);
-        const g = c.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, `rgb(${lerp(20, 255, p)},${lerp(10, 120, p)},${lerp(40, 20, p)})`);
-        g.addColorStop(1, `rgb(${lerp(60, 255, p)},${lerp(20, 210, p)},${lerp(60, 90, p)})`);
+        // she becomes a star
+        const p = seg(t, 1.5, 3.0), g = c.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, `rgb(${lerp(20, 255, p)},${lerp(10, 120, p)},${lerp(40, 20, p)})`); g.addColorStop(1, `rgb(${lerp(60, 255, p)},${lerp(20, 210, p)},${lerp(60, 90, p)})`);
         c.fillStyle = g; c.fillRect(0, 0, W, H);
         const R = lerp(20, 230, ease.out(p));
-        c.globalCompositeOperation = 'lighter';
-        c.save(); c.translate(W / 2, H / 2 - 20); c.rotate(t * 0.8);
-        c.fillStyle = 'rgba(255,220,120,0.35)';
+        c.globalCompositeOperation = 'lighter'; c.save(); c.translate(W / 2, H / 2 - 20); c.rotate(t * 0.8); c.fillStyle = 'rgba(255,220,120,0.35)';
         for (let i = 0; i < 16; i++) { c.rotate(Math.PI / 8); c.beginPath(); c.moveTo(-18, R * 0.9); c.lineTo(0, R * (1.7 + Math.sin(t * 7 + i) * 0.25)); c.lineTo(18, R * 0.9); c.fill(); }
         c.restore();
-        glowCircle(c, W / 2, H / 2 - 20, R * 2.2, 'rgba(255,200,80,0.8)', 'rgba(255,90,0,0)');
-        glowCircle(c, W / 2, H / 2 - 20, R, 'rgba(255,255,240,1)', 'rgba(255,220,120,0.9)');
-        c.globalCompositeOperation = 'source-over';
-        if (p < 0.5) silhouette(c, o => drawCharAt(o, f.def, W / 2, H / 2 + 60, 1.4, 1, { pose: 'victory', anim: t, transformed: true }), '#3a1000', 1 - p * 2);
+        glowCircle(c, W / 2, H / 2 - 20, R * 2.2, 'rgba(255,200,80,0.8)', 'rgba(255,90,0,0)'); glowCircle(c, W / 2, H / 2 - 20, R, 'rgba(255,255,240,1)', 'rgba(255,220,120,0.9)'); c.globalCompositeOperation = 'source-over';
+        if (p < 0.6) { c.globalAlpha = 1 - p / 0.6; cineChar(c, d, vk, W / 2, H / 2 + 70, lerp(1.6, 1.2, p), t, 'victory', { transformed: true, wings: 1 }); c.globalAlpha = 1; }
         titleSlam(c, 'SUPERNOVA', null, t, 2.2, '#fff6c0', 120);
       } else if (t < 4.3) {
-        const p = seg(t, 3.0, 4.3);
+        // the star folds into a phoenix and falls on the city
+        const p = seg(t, 3.0, 4.3), e = ease.inOut(p);
         City.drawSky(c, t, { top: '#ff8a2a', mid: '#ff5a1a', bot: '#b0200a', noMoon: true });
         drawCineCity(c, city, baseY, '#2a0e0a', false);
-        silhouette(c, o => drawCharAt(o, opp.def, target[0], baseY, opp.transformed && opp.def.id === 'eric' ? 1.6 : 1.8, 1, { pose: 'block', anim: t, transformed: opp.transformed }), '#1a0604');
-        const bx = lerp(W + 60, target[0], ease.inOut(p)), by = lerp(40, target[1] - 60, ease.inOut(p));
+        c.save(); c.globalCompositeOperation = 'lighter'; glowCircle(c, target[0], baseY, 60 + 240 * p, `rgba(255,140,40,${0.2 + 0.5 * p})`, 'rgba(255,60,0,0)'); c.restore();
+        const bx = lerp(W + 60, target[0], e), by = lerp(40, target[1] - 60, e);
         for (let i = 0; i < 8; i++) fx.add({ x: bx + rand(-40, 40), y: by + rand(-40, 40), vx: rand(80, 300), vy: rand(-250, -60), life: rand(0.4, 0.9), size: rand(10, 22), color: pick(['#ffcc33', '#ff7a1a', '#ff3b1a']), glow: true, grow: -14 });
         fx.draw(c);
         drawFirebird(c, bx, by, lerp(0.6, 1.4, p), Math.atan2(target[1] - 100, target[0] - W - 60), t);
-        caption(c, "Every ember remembers.", t, 3.05, 4.2);
+        caption(c, 'Every ember remembers.', t, 3.05, 4.2);
       } else if (t < 5.0) {
         const p = seg(t, 4.3, 5.0);
         c.fillStyle = '#fff4d0'; c.fillRect(0, 0, W, H);
-        for (let i = 0; i < 4; i++) {
-          c.strokeStyle = `rgba(255,${120 + i * 30},20,${1 - p})`; c.lineWidth = 30 - i * 5;
-          c.beginPath(); c.ellipse(target[0], target[1] - 40, (p * 1400 - i * 120) > 0 ? p * 1400 - i * 120 : 1, Math.max(1, (p * 500 - i * 50)), 0, 0, Math.PI * 2); c.stroke();
-        }
+        for (let i = 0; i < 4; i++) { c.strokeStyle = `rgba(255,${120 + i * 30},20,${1 - p})`; c.lineWidth = 30 - i * 5; c.beginPath(); c.ellipse(target[0], target[1] - 40, Math.max(1, p * 1400 - i * 120), Math.max(1, p * 500 - i * 50), 0, 0, Math.PI * 2); c.stroke(); }
       } else {
-        const p = seg(t, 5.0, 7.2);
-        c.fillStyle = '#1a0c0a'; c.fillRect(0, 0, W, H);
-        const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#2a0e0a'); g.addColorStop(1, '#6a2a10');
-        c.fillStyle = g; c.fillRect(0, 0, W, H);
+        // out of the ashes, she re-forms and rises
+        const p = seg(t, 5.0, 7.2), g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#2a0e0a'); g.addColorStop(1, '#6a2a10'); c.fillStyle = g; c.fillRect(0, 0, W, H);
         drawCineCity(c, city.map(b => Object.assign({}, b, { dead: true })), baseY, '#140605', false);
         if (Math.random() < 0.9) fx.add({ x: rand(0, W), y: -10, vx: rand(-20, 20), vy: rand(30, 70), life: 6, size: rand(2, 4), color: '#bbb' });
-        // ember pile forming into Kira
         for (let i = 0; i < 3; i++) fx.add({ x: W / 2 + rand(-60, 60), y: baseY + rand(-10, 10), vx: rand(-10, 10), vy: rand(-200, -80), life: 0.6, size: rand(4, 9), color: pick(['#ffcc33', '#ff7a1a']), glow: true });
         fx.draw(c);
         const rise = ease.out(seg(t, 5.2, 6.2));
-        c.globalAlpha = rise;
-        drawCharAt(c, f.def, W / 2, baseY + (1 - rise) * 60, 2.4, 1, { pose: 'victory', anim: t, transformed: true, wings: rise * 0.9 });
-        c.globalAlpha = 1;
+        c.globalAlpha = rise; cineChar(c, d, vk, W / 2, baseY + (1 - rise) * 60, 2.6, t, t < 5.9 ? 'kneel' : 'victory', { transformed: true, wings: rise * 0.9 }); c.globalAlpha = 1;
         caption(c, '...and rise again.', t, 5.3, 7.1, '#ffe6b0');
-        titleSlam(c, 'SUPERNOVA REBIRTH', 'KIRA RESTORES 25 HP', t, 5.9, '#ff9a1a', 96);
+        titleSlam(c, 'SUPERNOVA REBIRTH', 'THE FLAME NEVER DIES', t, 5.9, '#ff9a1a', 96);
         flashAt(c, t, 5.0, 5.5, '#fff4d0');
       }
     },
