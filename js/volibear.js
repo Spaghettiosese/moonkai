@@ -263,60 +263,94 @@ function volBearCloud(c, t, k) {
   c.restore();
 }
 
+// Cinematics draw Volibear through ONE persistent view object, so the pixel renderer blends his
+// poses smoothly frame to frame. Every motion below is a continuous eased curve, not a pose swap.
+function volDraw(c, d, v, x, y, s, t, pose, extra) { c.save(); c.translate(x, y); c.scale(s, s); Object.assign(v, { pose, anim: t, gauge: 5 }, extra); d.draw(c, v); c.restore(); }
+function volGround(c, y, col) { c.fillStyle = col; c.fillRect(0, y, W, H - y); c.fillStyle = 'rgba(235,245,255,0.9)'; c.fillRect(0, y, W, 5); }
+function volShake(c, amt) { if (amt > 0.2) c.translate(rand(-amt, amt), rand(-amt, amt)); }
+
+// THE RELENTLESS STORM — the storm answers his roar and remakes him.
 function csVolibearStorm(f) {
-  const fx = new ParticleSystem(1600), d = f.def; let bolts = [];
+  const fx = new ParticleSystem(1600), d = f.def, v = {}, vS = {};
   return {
-    name: 'THE RELENTLESS STORM', dur: 4.6, fx,
-    cues: [[0, () => volSfx('roar')], [1.3, () => { volSfx('zap'); volSfx('boom'); }], [1.8, () => volSfx('zap')], [2.3, () => volSfx('zap')], [2.9, () => { volSfx('roar'); volSfx('boom'); }]],
+    name: 'THE RELENTLESS STORM', dur: 4.8, fx,
+    cues: [[0, () => volSfx('roar')], [1.3, () => { volSfx('zap'); volSfx('boom'); }], [1.9, () => volSfx('zap')], [2.5, () => volSfx('zap')], [3.0, () => { volSfx('roar'); volSfx('boom'); }]],
     draw(c, t) {
-      volSky(c, seg(t, 0, 2.9)); volBearCloud(c, t, seg(t, 2.6, 3.6)); volMountains(c, '#141c2c'); volSnow(fx, 5); fx.draw(c);
-      const grow = seg(t, 1.3, 2.9);
-      drawCharAt(c, d, W / 2, H - 330 + 40, 1.6 + grow * 0.9, 1, { pose: t < 1.3 ? 'taunt' : t < 2.9 ? 'charge' : 'victory', anim: t, transformed: t > 2.5, gauge: 5 });
-      if (t > 1.3 && t < 2.9) { const n = Math.floor((t - 1.3) * 6); if (bolts.length < n) bolts.push(rand(0, 99)); for (const s of bolts.slice(-2)) drawBolt(c, W / 2 + Math.sin(s) * 200, -20, W / 2, H - 400, s + t * 2, 6, '#bff0ff'); if (Math.sin(t * 40) > 0.6) { c.fillStyle = 'rgba(210,240,255,0.25)'; c.fillRect(0, 0, W, H); } }
-      caption(c, 'The old ways return.', t, 0.1, 1.25, '#cfefff');
-      flashAt(c, t, 2.9, 3.2, '#e8f8ff');
-      titleSlam(c, 'THE RELENTLESS STORM', 'I AM THE STORM', t, 3.0, '#7ad8ff', 84);
+      const gather = ease.inOut(seg(t, 0, 3)), grow = ease.inOut(seg(t, 1.2, 3.0)), swap = ease.inOut(seg(t, 2.3, 3.0));
+      c.save(); volShake(c, t > 1.3 && t < 3.1 ? 3 + grow * 6 : Math.max(0, 8 - (t - 3.1) * 12));
+      volSky(c, gather); volBearCloud(c, t, ease.out(seg(t, 2.6, 3.8))); volMountains(c, '#141c2c'); volGround(c, H - 150, '#0e1422');
+      volSnow(fx, 4 + Math.floor(gather * 6)); fx.draw(c);
+      const x = W / 2, y = H - 110 + Math.sin(t * 2) * 2, sc = 2.4 + grow * .6;
+      const pose = t < 1.2 ? 'taunt' : t < 3.0 ? 'charge' : 'victory';
+      // lightning pours into him while his fur darkens (cross-fade into the storm form)
+      if (t > 1.3 && t < 3.0) for (let i = 0; i < 2; i++) { const sd = Math.floor(t * 9) + i * 5; drawBolt(c, x + Math.sin(sd * 1.7) * 260, -20, x + Math.sin(sd) * 20, y - 130 * sc, sd, 5 + grow * 3, '#bff0ff'); }
+      c.save(); c.globalCompositeOperation = 'lighter'; glowCircle(c, x, y - 90 * sc, 90 + grow * 160, `rgba(140,220,255,${0.15 + grow * 0.35})`, 'rgba(0,0,0,0)'); c.restore();
+      c.globalAlpha = 1 - swap; volDraw(c, d, v, x, y, sc, t, pose, { transformed: false });
+      c.globalAlpha = swap; if (swap > 0) volDraw(c, d, vS, x, y, sc, t, pose, { transformed: true });
+      c.globalAlpha = 1;
+      if (t > 3.0) for (let i = 0; i < 3; i++) { const a = t * 6 + i * 2.1; drawBolt(c, x, y - 110 * sc, x + Math.cos(a) * 170, y - 110 * sc + Math.sin(a) * 120, a, 3, '#9ae6ff'); }
+      c.restore();
+      caption(c, 'The old ways return.', t, 0.1, 1.2, '#cfefff');
+      flashAt(c, t, 2.95, 3.3, '#e8f8ff');
+      titleSlam(c, 'THE RELENTLESS STORM', 'I AM THE STORM', t, 3.1, '#7ad8ff', 84);
     },
   };
 }
 
+// STORMBRINGER — he roars, leaps into the clouds, becomes the lightning and comes down as it.
 function csVolibearUlt(a, opp) {
-  const fx = new ParticleSystem(3000), d = a.def, city = makeCineCity(18, 140, 360), baseY = H - 30, oppX = W * 0.62;
-  const oppScale = opp.transformed && opp.def.id === 'eric' ? 0.55 : 1.3;
+  const fx = new ParticleSystem(3000), d = a.def, city = makeCineCity(18, 140, 360), baseY = H - 30, v = {}, hitX = W * 0.6;
+  const trail = [];
   return {
-    name: 'STORMBRINGER', dur: 6.8, fx,
-    cues: [[0, () => volSfx('roar')], [1.2, () => volSfx('screech')], [1.5, () => volSfx('zap')], [2.0, () => volSfx('zap')], [2.7, () => volSfx('whoosh')], [3.7, () => { volSfx('boom'); volSfx('boom', 0.2); volSfx('zap'); }]],
+    name: 'STORMBRINGER', dur: 6.6, fx,
+    cues: [[0, () => volSfx('roar')], [1.4, () => volSfx('whoosh')], [2.4, () => volSfx('screech')], [3.0, () => volSfx('zap')], [3.6, () => volSfx('whoosh')], [4.2, () => { volSfx('boom'); volSfx('boom', 0.2); volSfx('zap'); }]],
     draw(c, t) {
-      volSky(c, 1); volBearCloud(c, t, Math.min(1, t / 1.2));
-      if (t < 3.7) {
+      const impact = 4.2, after = t - impact;
+      c.save(); volShake(c, t < 1.4 ? t * 2 : t < impact ? 3 : Math.max(0, 22 - after * 20));
+      volSky(c, Math.min(1, t / 1.5)); volBearCloud(c, t, ease.inOut(seg(t, 1.6, 3.2)));
+      if (t < impact) {
         volSnow(fx, 6);
-        const dead = t > 1.5; if (dead) for (const b of city) if (Math.random() < 0.01) b.dead = true;
         drawCineCity(c, city, baseY, '#0e1422');
-        if (t > 1.4 && t < 2.7) for (let i = 0; i < 3; i++) { const x = rand(40, W - 40); drawBolt(c, x + rand(-60, 60), 160, x, baseY - rand(0, 80), rand(0, 99), 4, '#bff0ff'); }
-        const jump = t > 2.7 ? ease.in(seg(t, 2.7, 3.7)) : 0;
-        silhouette(c, o => drawCharAt(o, opp.def, oppX, baseY, oppScale, -1, { pose: t > 1.5 ? 'block' : 'idle', anim: t, transformed: opp.transformed }), '#0a0e18');
-        if (t < 2.7) caption(c, 'Look up, little one. The sky remembers my name.', t, 0.1, 1.3, '#cfefff');
-        if (t > 2.7) { const x = lerp(W / 2, oppX, jump), y = lerp(80, baseY - 30, jump); drawBolt(c, W / 2, 0, x, y, t * 3, 10, '#e8f8ff'); drawCharAt(c, d, x, y, 2.2, 1, { pose: 'air_spike', anim: t, transformed: true, gauge: 5 }); speedLines(c, t, oppX, baseY - 80, 'rgba(200,240,255,0.5)'); }
+        // 0–1.4: the roar; 1.4–2.3: crouch and launch; 2.3–3.5: gone into the storm; 3.5–4.2: the fall
+        const crouch = ease.inOut(seg(t, 1.1, 1.5)), rise = ease.in(seg(t, 1.5, 2.3));
+        if (t < 2.3) {
+          const x = W * 0.38, y = baseY - 10 + crouch * 8 - rise * (baseY + 300), sc = 3.0 + Math.min(1, t / 1.4) * .4;
+          if (rise > 0) for (let i = 1; i <= 4; i++) { c.globalAlpha = 0.25 / i; volDraw(c, d, {}, x, y + i * 40 * rise, sc, t, 'jump', { transformed: true }); } c.globalAlpha = 1;
+          volDraw(c, d, v, x, y, sc, t, t < 1.1 ? 'taunt' : t < 1.5 ? 'crouch' : 'jump', { transformed: true });
+          if (t > 1.5) speedLines(c, t, x, y - 200, 'rgba(200,240,255,0.45)');
+        }
+        const charge = seg(t, 2.3, 3.5);
+        if (t > 2.3 && t < 3.6) {
+          for (let i = 0; i < 3; i++) { const sd = Math.floor(t * 12) + i * 7; drawBolt(c, W / 2 + Math.sin(sd * 2.3) * 300, 120, W / 2 + Math.sin(sd) * 60, 190, sd, 3 + charge * 4, '#bff0ff'); }
+          c.save(); c.globalCompositeOperation = 'lighter'; glowCircle(c, W / 2, 170, 60 + charge * 220, `rgba(160,230,255,${0.2 + charge * 0.5})`, 'rgba(0,0,0,0)'); c.restore();
+          caption(c, 'Look up. The sky remembers my name.', t, 2.3, 3.5, '#cfefff');
+        }
+        if (t > 3.5) { // the fall: he rides the bolt down onto the target
+          const k = ease.in(seg(t, 3.5, impact)), x = lerp(W / 2, hitX, k), y = lerp(170, baseY - 20, k);
+          trail.push([x, y]); if (trail.length > 8) trail.shift();
+          drawBolt(c, W / 2, 150, x, y, t * 5, 9, '#e8f8ff');
+          trail.forEach(([tx, ty], i) => { c.globalAlpha = (i + 1) / trail.length * 0.3; volDraw(c, d, {}, tx, ty, 3.0, t, 'air_spike', { transformed: true }); });
+          c.globalAlpha = 1; volDraw(c, d, v, x, y, 3.0, t, 'air_spike', { transformed: true });
+        }
         fx.draw(c);
-      } else if (t < 4.6) {
-        const k = seg(t, 3.7, 4.5);
-        for (const b of city) b.dead = true;
-        drawCineCity(c, city, baseY, '#0e1422', false);
-        drawBolt(c, oppX, -20, oppX, baseY, 11, 26 * (1 - k) + 4, '#ffffff');
-        c.globalCompositeOperation = 'lighter'; glowCircle(c, oppX, baseY, 700 * ease.out(k), 'rgba(160,230,255,0.6)', 'rgba(0,0,0,0)'); c.globalCompositeOperation = 'source-over';
-        c.fillStyle = 'rgba(220,245,255,0.9)'; for (let i = 0; i < 14; i++) { const x = oppX + (i - 7) * 60, h = (80 - Math.abs(i - 7) * 9) * ease.out(k); c.beginPath(); c.moveTo(x - 14, baseY); c.lineTo(x, baseY - h); c.lineTo(x + 14, baseY); c.fill(); }
-        if (t < 3.9) for (let i = 0; i < 10; i++) fx.add({ x: oppX, y: baseY, vx: rand(-900, 900), vy: rand(-900, -200), life: 1, size: rand(6, 14), color: pick(['#bff0ff', '#fff', '#556']), glow: true, g: 1200 });
-        fx.draw(c);
-        flashAt(c, t, 3.7, 4.05, '#f0faff');
       } else {
-        volSnow(fx, 3);
+        const k = ease.out(seg(t, impact, impact + 0.8));
+        for (const bd of city) bd.dead = true;
         drawCineCity(c, city, baseY, '#0a0e18', false);
-        c.fillStyle = 'rgba(210,240,255,0.8)'; for (let i = 0; i < 20; i++) { const x = (i * 71) % W, h = 20 + ((i * 37) % 60); c.beginPath(); c.moveTo(x - 10, baseY); c.lineTo(x, baseY - h); c.lineTo(x + 10, baseY); c.fill(); }
-        fx.draw(c);
-        silhouette(c, o => { o.save(); o.translate(W * 0.74, baseY - 12); o.rotate(-1.45); drawCharAt(o, opp.def, 0, 0, oppScale * 0.9, -1, { pose: 'hurt', anim: 0, transformed: opp.transformed }); o.restore(); }, '#05080f');
-        drawCharAt(c, d, W * 0.4, baseY - 4, 2.4, 1, { pose: 'taunt', anim: t, transformed: true, gauge: 5 });
-        titleSlam(c, 'STORMBRINGER', `${opp.def.name} WAS STRUCK DOWN BY THE STORM`, t, 4.8, '#7ad8ff', 104);
+        if (after < 0.5) drawBolt(c, hitX, -20, hitX, baseY, 11, 30 * (1 - after * 2) + 4, '#ffffff');
+        c.save(); c.globalCompositeOperation = 'lighter'; glowCircle(c, hitX, baseY, 750 * k, `rgba(160,230,255,${0.6 * (1 - seg(t, impact + 0.8, impact + 2))})`, 'rgba(0,0,0,0)'); c.restore();
+        c.strokeStyle = `rgba(220,245,255,${1 - k})`; c.lineWidth = 10; c.beginPath(); c.ellipse(hitX, baseY - 10, 900 * k, 120 * k, 0, 0, Math.PI * 2); c.stroke();
+        c.fillStyle = 'rgba(220,245,255,0.9)'; for (let i = 0; i < 14; i++) { const x = hitX + (i - 7) * 60, h = (90 - Math.abs(i - 7) * 10) * k; c.beginPath(); c.moveTo(x - 14, baseY); c.lineTo(x, baseY - h); c.lineTo(x + 14, baseY); c.fill(); }
+        if (after < 0.25) for (let i = 0; i < 12; i++) fx.add({ x: hitX, y: baseY, vx: rand(-900, 900), vy: rand(-900, -200), life: 1.2, size: rand(6, 14), color: pick(['#bff0ff', '#fff', '#556']), glow: true, g: 1200 });
+        volSnow(fx, 3); fx.draw(c);
+        // he rises out of the crater and roars, lightning still crawling over him
+        const up = ease.inOut(seg(t, impact + 0.6, impact + 1.6));
+        volDraw(c, d, v, hitX, baseY - 6, 3.0 + up * .3, t, after < 0.6 ? 'kneel' : 'victory', { transformed: true });
+        for (let i = 0; i < 2; i++) { const a2 = t * 7 + i * 3; drawBolt(c, hitX, baseY - 200, hitX + Math.cos(a2) * 160, baseY - 200 + Math.sin(a2) * 100, a2, 2.5, '#9ae6ff'); }
+        flashAt(c, t, impact, impact + 0.4, '#f0faff');
       }
+      c.restore();
+      if (t > impact) titleSlam(c, 'STORMBRINGER', 'THE STORM HAS SPOKEN', t, impact + 0.9, '#7ad8ff', 104);
     },
   };
 }
