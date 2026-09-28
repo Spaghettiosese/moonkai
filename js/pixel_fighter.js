@@ -180,15 +180,16 @@ const PixelArt = (() => {
   }
 
   // Pixel portrait: a 128x128 Pixel Studio bust drawn crisp into the 100x100 portrait box.
-  function portrait(id, b64, fallback, formFx) {
-    const img = new Image();
-    img.onload = () => { for (const k in PortraitCache) if (k.startsWith(id + ':')) delete PortraitCache[k]; };
-    img.src = 'data:image/png;base64,' + b64;
+  // formB64 (optional): a separate bust for the transformed / ultimate look.
+  function portrait(id, b64, fallback, formFx, formB64) {
+    const load = src => { const img = new Image(); img.onload = () => { for (const k in PortraitCache) if (k.startsWith(id + ':')) delete PortraitCache[k]; }; img.src = 'data:image/png;base64,' + src; return img; };
+    const img = load(b64), formImg = formB64 ? load(formB64) : null;
     return (c, opts = {}, def) => {
-      if (!img.complete || !img.naturalWidth) return fallback && fallback(c, opts, def);
+      const use = opts.form && formImg ? formImg : img;
+      if (!use.complete || !use.naturalWidth) return fallback && fallback(c, opts, def);
       const sm = c.imageSmoothingEnabled; c.imageSmoothingEnabled = false;
-      c.drawImage(img, 0, 0, 100, 100); c.imageSmoothingEnabled = sm;
-      if (opts.form && formFx) formFx(c);
+      c.drawImage(use, 0, 0, 100, 100); c.imageSmoothingEnabled = sm;
+      if (opts.form && formFx && !formImg) formFx(c);
     };
   }
   const formGlow = (inner, ember) => c => {
