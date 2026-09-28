@@ -127,9 +127,10 @@ const PixelArt = (() => {
     }
 
     function pose(v) {
-      const target = humanPose(v.pose, v.anim || 0), k = cfg.blend ?? .5;
       let st = v._px;
       if (!st || st.kind !== cfg.id) st = v._px = { kind: cfg.id };
+      if (cfg.rig === false) return { P: {}, st }; // free-form body (e.g. the Great Ape), no humanoid joints
+      const target = humanPose(v.pose, v.anim || 0), k = cfg.blend ?? .5;
       if (!st.P) st.P = {};
       for (const j of JOINTS) st.P[j] = st.P[j] ? lerp2(st.P[j], target[j], k) : target[j].slice();
       const P = {};
@@ -147,7 +148,7 @@ const PixelArt = (() => {
       if (cfg.override && cfg.override(c, v)) return;
       const t = v.anim || 0, { P, st } = pose(v), s = cfg.state(v, t, st);
       let key = JSON.stringify(s);
-      for (const j of JOINTS) key += P[j][0] + ',' + P[j][1] + ';';
+      if (cfg.rig !== false) for (const j of JOINTS) key += P[j][0] + ',' + P[j][1] + ';';
       let spr = cache.get(key);
       if (spr) { cache.delete(key); cache.set(key, spr); }
       else {
