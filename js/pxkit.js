@@ -110,3 +110,59 @@ PxKit.reviveCs = function (f, o) {
     },
   };
 };
+
+// ---------------------------------------------------------------------------------------------
+//  Ultimate helpers.
+//   PxKit.ult({id,name,desc,pose,s,a,r,dmg,color,fx,cutscene,swing,after,rw,ev}) -> a ready ultimate move (kind 'ult', cost 300)
+//   PxKit.trackEv(move, {at, r, track, color, start(f), fire(f,x)}) -> ev map: a telegraph that tracks the foe, then an ultConnect strike at `at`.
+//   PxKit.zoneEv(move, {at, w, h, back, start(f), fire(f)}) -> ev map: an ultConnect strike over a rectangle in front of the user at `at`.
+// ---------------------------------------------------------------------------------------------
+PxKit.ult = function (o) {
+  const m = superize(mk({ name: o.name, desc: o.desc, pose: o.pose || 'cast', s: o.s, a: o.a || 4, r: o.r || 28, ev: o.ev || {}, swing: o.swing, gjCharge: o.gjCharge }), 300);
+  m.id = o.id; m.recoverWhiff = o.rw || 30;
+  m.ult = { dmg: o.dmg, cutscene: o.cutscene, fx: o.fx || { el: 'light', color: o.color || '#ffffff' } }; if (o.after) m.ult.after = o.after;
+  return m;
+};
+PxKit.trackEv = function (move, o) {
+  const ev = {};
+  ev[1] = f => { o.start && o.start(f); const t = f.opp; f.ultTele = Combat.telegraph(f, { x: t ? t.x : f.x, follow: t, track: o.track ?? .16, r: o.r || 120, life: 999, color: o.color || '#ffffff', column: o.column !== false }); };
+  ev[o.at] = f => {
+    const x = f.ultTele ? f.ultTele.x : f.x; if (f.ultTele) f.ultTele.life = 0; f.ultTele = null;
+    for (const e of Combat.targets(f.side)) if (Math.abs(e.x - x) < (o.r || 120) + 10) Combat.resolveHit(e, f, H_({ dmg: 10, hs: 60, kb: [0, 0], ultConnect: true, guard: 'mid' }), { proj: true, fromX: x, move });
+    o.fire && o.fire(f, x);
+  };
+  if (o.mid) for (const [k, fn] of Object.entries(o.mid)) { const prev = ev[k]; ev[k] = prev ? (f => { prev(f); fn(f); }) : fn; }
+  return ev;
+};
+PxKit.zoneEv = function (move, o) {
+  const ev = {}; if (o.start) ev[o.startAt || 2] = o.start;
+  ev[o.at] = f => { Combat.strikeZone(f, { x: f.facing > 0 ? f.x - (o.back || 0) : f.x - o.w + (o.back || 0), y: -o.h + 4, w: o.w + (o.back || 0), h: o.h }, { dmg: 10, hs: 60, kb: [0, 0], ultConnect: true, guard: 'mid' }, { move }); o.fire && o.fire(f); };
+  return ev;
+};
+// sound helper: sfx(name,...) that never throws
+PxKit.sfx = (n, ...a) => { try { Sfx[n] && Sfx[n](...a); } catch (e) { } };
+
+// ---------------------------------------------------------------------------------------------
+//  Rework helpers
+//   PxKit.setMove(def, slot, move)       replace/install a base special (ids/owner filled in)
+//   PxKit.formKit(def, {moves, ult, desc, patch})   give the awakening a moveset / its own ultimate
+//   PxKit.setUlt(def, ult)               replace the base ultimate
+// ---------------------------------------------------------------------------------------------
+PxKit.prepMove = (def, m, slot, pre) => { m.id = m.id || def.id + pre + slot; m.slot = slot; m.owner = def.id; if (slot === 'jS') m.air = true; return m; };
+PxKit.setMove = (def, slot, m) => { def.moves[slot] = PxKit.prepMove(def, m, slot, '_'); return m; };
+PxKit.formKit = (def, o) => {
+  const F = def.form; if (o.moves) { F.moves = Object.assign(F.moves || {}, o.moves); for (const [slot, m] of Object.entries(o.moves)) PxKit.prepMove(def, m, slot, '_f'); }
+  if (o.ult) F.ult = o.ult; if (o.desc) F.desc = o.desc; if (o.patch) Object.assign(F, o.patch);
+};
+PxKit.setUlt = (def, ult) => { def.ult = ult; def.ultAct = def.ultAct || 'strike'; if (ult.ult && ult.ult.fx) def.fx = ult.ult.fx; };
+// a quick pixel silhouette lion/beast for crowds: dir = +1 faces right
+PxKit.beast = function (x, px, py, s, t, dir, col, mane) {
+  x.save(); x.translate(px, py); x.scale(s * dir, s); x.fillStyle = col;
+  const run = Math.sin(t * 14);
+  x.fillRect(-26, -26, 44, 18); x.fillRect(16, -34, 18, 18);                       // body, head
+  if (mane) { x.fillStyle = mane; x.fillRect(10, -40, 12, 30); x.fillRect(6, -34, 8, 22); x.fillStyle = col; }
+  x.fillRect(32, -28, 8, 8);                                                       // muzzle
+  x.fillRect(-26 + run * 4, -8, 7, 14); x.fillRect(-12 - run * 4, -8, 7, 14); x.fillRect(6 + run * 4, -8, 7, 14); x.fillRect(16 - run * 4, -8, 7, 14); // legs
+  x.fillRect(-38, -30 + run * 3, 14, 5); x.fillRect(-42, -36 + run * 3, 5, 8);    // tail
+  x.restore();
+};

@@ -112,6 +112,15 @@ class BattleScreen {
     if (tapped('F7', 'Digit7')) { B.myHp = cycle([1, 0.6, 0.3, 0.1], B.myHp || 1); me.hp = me.red = Math.round(me.maxHp * B.myHp); Sfx.select(); }
     // F8: dummy health 100 / 50 / 15 / 5 % (test executes and low-HP effects)
     if (tapped('F8', 'Digit8')) { B.dumHp = cycle([1, 0.5, 0.15, 0.05], B.dumHp || 1); dm.hp = dm.red = Math.round(dm.maxHp * B.dumHp); Sfx.select(); }
+    // F10 (or 0): test your revival. Knocks you to 0 HP through the real KO path, so whichever rescue your fighter has
+    // (revival, Second Life, Rekindle, Glory in Death, Fallen God, cheat-death) plays out; if none applies you are just restored.
+    if (tapped('F10', 'Digit0')) {
+      me.rev2 = false; me.cheated = false; me.revived = false; if (!me.corrupted) me.corrupted = false; me.invul = 0;
+      const was = { hp: me.hp, form: me.form };
+      B.training = false; me.hp = 0; B.onKO(me, dm, null); B.training = true;
+      if (me.state === 'ko') { me.state = 'stand'; me.hp = me.red = me.maxHp; me.vy = 0; me.y = 0; B.state = 'fight'; B.stateT = 0; B.slowmo = 1; Game.banner = null; Game.popWorld(me.x, me.y - me.h - 40, me.form || !me.def.form ? 'NO REVIVAL' : 'NEEDS AWAKEN (F5)', '#aab', 20); }
+      Sfx.select();
+    }
     // F9: clear the damage log
     const D = B.dmgLog = B.dmgLog || { cur: 0, last: 0, best: 0, total: 0, hits: 0 };
     if (tapped('F9', 'Digit9')) { Object.assign(D, { cur: 0, last: 0, best: 0, total: 0, hits: 0 }); Sfx.select(); }
