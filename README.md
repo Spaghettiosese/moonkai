@@ -89,7 +89,7 @@ Aurelion, Oracle, Shinji, Gojo and Mordekaiser are full remakes: each has its ow
 
 ## Reworked fighters
 
-Portraits for these are redrawn as pixel busts cut from each fighter's own sprite, per form (`PxKit.bust`).
+Portraits for these are hand-drawn face-on anime illustrations (backdrop, hair, big eyes, a separate drawing per form, plus a Fallen Aurelion), posterised through the pixel engine like the Aatrox and Volibear busts. They live in `js/rw_faces.js`.
 
 Aurelion, Oracle, Shinji, Gojo, Mordekaiser, Eric, Aatrox, Jinx, Kira Sol, Seraph, Razor, Sion, Dio, Yuji, Darius, Yhwach, Leo, Blossom, Grimm, Zephyr, Neon, The Judge and Astra have been reworked. Each is drawn in pixel art, and nearly all of them gain:
 
