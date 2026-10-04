@@ -277,3 +277,40 @@ PxKit.sky = function (x, t, o, k = 0) {
   x.restore();
   if (o.grid) { x.strokeStyle = o.grid; x.lineWidth = 3; for (let i = 0; i < 14; i++) { x.beginPath(); x.moveTo(0, H - 90 + i * 12); x.lineTo(W, H - 90 + i * 12); x.stroke(); } }
 };
+
+// ---------------------------------------------------------------------------------------------
+//  PxKit.bust(def, opts): a pixel-art portrait cut from the fighter's own sprite.
+//   The sprite is drawn into a scratch canvas, its head is located (topmost solid rows), and the bust is framed so the head fills
+//   about 45% of the box. Normal and awakened forms (and the Fallen God) are framed separately. The backdrop is drawn from the
+//   fighter's colours as chunky pixels: a glow, diagonal streaks, a few stars and (when awakened) rising sparks.
+//   The original portrait stays as the fallback when Pixel Art Fighters is off.
+// ---------------------------------------------------------------------------------------------
+PxKit.bust = function (def, o = {}) {
+  const prev = def.drawPortrait, frames = {};
+  const view = (d, form, alt) => { const fallen = !!(d.portraitId && /_fallen$/.test(d.portraitId)); return { pose: o.pose || 'idle', anim: 0.35, transformed: !!form || fallen, form: !!form, alt: alt || 0, def: d, state: 'idle', fallen, corrupted: fallen, gauge: 3 }; };
+  const HEADS = PxKit.bustFrames = PxKit.bustFrames || {};
+  const frame = (d, form, alt) => {
+    const key = (d.portraitId || d.id) + ':' + (form ? 1 : 0), T = HEADS[key] || HEADS[d.id + ':' + (form ? 1 : 0)] || HEADS[d.id];
+    if (T) return { hx: T[0], hy: T[1], s: T[2] };
+    const bh = (BUILDS[(d.model && d.model.build) || 'normal'] || BUILDS.normal).h, hp = humanPose('idle', .35).head;
+    return { hx: hp[0] * bh, hy: hp[1] * bh + 2, s: o.s || 1.75 };
+  };
+  const bg = (c, d, form, t) => {
+    const col = d.color || '#88aaff', c2 = (d.color2 && d.color2.length === 7 ? d.color2 : '#101028');
+    const g = c.createLinearGradient(0, 0, 0, 100); g.addColorStop(0, shadeHex(c2, form ? .1 : -.35)); g.addColorStop(1, shadeHex(c2, -.6)); c.fillStyle = g; c.fillRect(0, 0, 100, 100);
+    c.save(); c.globalCompositeOperation = 'lighter'; glowCircle(c, 50, 44, form ? 70 : 54, hexA(col, form ? .5 : .32), 'rgba(0,0,0,0)');
+    c.strokeStyle = hexA(col, form ? .35 : .2); c.lineWidth = 3; for (let i = 0; i < 7; i++) { c.beginPath(); c.moveTo(-10, 8 + i * 16); c.lineTo(34 + (i % 3) * 8, -6 + i * 16); c.stroke(); }
+    for (let i = 0; i < (form ? 26 : 12); i++) { c.fillStyle = i % 3 ? hexA(col, .9) : 'rgba(255,255,255,0.9)'; c.fillRect(Math.round(((i * 37) % 100) / 2) * 2, Math.round(((i * 53) % 90) / 2) * 2, 2, 2); }
+    c.restore();
+    c.fillStyle = 'rgba(0,0,0,0.38)'; c.fillRect(0, 86, 100, 14);
+  };
+  const fn = (c, opts = {}, d) => {
+    d = d || def; const form = !!opts.form, f = frame(d, form, opts.alt);
+    bg(c, d, form);
+    c.save(); c.beginPath(); c.rect(0, 0, 100, 100); c.clip(); c.translate(50 - f.hx * f.s, 44 - f.hy * f.s); c.scale(f.s, f.s);
+    try { d.draw(c, view(d, form, opts.alt)); } catch (e) { }
+    c.restore();
+  };
+  const px = PxKit.portrait((def.id) + '_bust', fn, { res: 100, levels: 16, dither: 0, outline: false });
+  def.drawPortrait = (c, opts, d) => PxKit.on() ? px(c, opts, d) : (prev ? prev(c, opts, d) : fn(c, opts, d));
+};

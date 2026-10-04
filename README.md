@@ -89,6 +89,8 @@ Aurelion, Oracle, Shinji, Gojo and Mordekaiser are full remakes: each has its ow
 
 ## Reworked fighters
 
+Portraits for these are redrawn as pixel busts cut from each fighter's own sprite, per form (`PxKit.bust`).
+
 Aurelion, Oracle, Shinji, Gojo, Mordekaiser, Eric, Aatrox, Jinx, Kira Sol, Seraph, Razor, Sion, Dio, Yuji, Darius, Yhwach, Leo, Blossom, Grimm, Zephyr, Neon, The Judge and Astra have been reworked. Each is drawn in pixel art, and nearly all of them gain:
 
 - **A form moveset.** Awakening swaps in new versions of their specials, not just a stat boost.
