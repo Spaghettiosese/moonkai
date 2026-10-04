@@ -85,3 +85,16 @@ js/touch.js       on-screen touch controls and tap navigation
 The `pixel/` folder holds **Moonkai Pixel Studio**, a pixel art and animation editor for anime-style art. Open `pixel/index.html` to use it. See [pixel/README.md](pixel/README.md) for details. In the game, Aatrox, Kael, Seraph, Sion, Razor, Volibear, Aurelion, Oracle, Shinji, Gojo and Mordekaiser (and their portraits) are drawn live in the Pixel Studio style (turn it off with **Settings → Pixel Art Fighters**), with smooth pose blending and kick trails. The shared renderer is `js/pixel_fighter.js`, with the fighters in `js/aatrox_pixel.js` and `js/pixel_roster.js`.
 
 Aurelion, Oracle, Shinji, Gojo and Mordekaiser are full remakes: each has its own file with a pixel renderer, a rebuilt kit, and unique awakening and ultimate cinematics whose backdrops are rendered at low resolution so they match the sprites. `js/pxkit.js` holds the shared pixel helpers (posterised portraits, low-res cinematic scenes), and `js/sfx2.js` adds layered, reverb-backed sound design (FM bells, filtered noise sweeps, choirs, sub drops) with a set of named sounds for each of the five.
+
+
+## Reworked fighters
+
+Aurelion, Oracle, Shinji, Gojo, Mordekaiser, Eric, Aatrox, Jinx, Kira Sol, Seraph, Razor, Sion, Dio, Yuji, Darius, Yhwach, Leo, Blossom, Grimm, Zephyr, Neon, The Judge and Astra have been reworked. Each is drawn in pixel art, and nearly all of them gain:
+
+- **A form moveset.** Awakening swaps in new versions of their specials, not just a stat boost.
+- **A second ultimate.** The awakened form has its own ultimate with its own cinematic.
+- **New sound design.** `js/sfx2.js` adds layered, reverb-backed synthesis and gives every older effect extra weight.
+
+Revivals are rare on purpose. Beyond Kael, Aatrox, Aurelion (Fallen God), Kira Sol (Rekindle) and Sion (Glory in Death), only Mordekaiser (returns from the Realm, awakened), Neon (1UP) and Yuji (Sukuna takes over) can get back up. In Training, press **F10** to test your fighter's revival.
+
+New shared code: `js/pxkit.js` (portraits, low-res cinematic scenes, `pixelize`, revival and ultimate cinematic builders), `js/pxmodel.js` (a pixel renderer for model-driven fighters), and one `js/rw_<fighter>.js` per reworked fighter.
