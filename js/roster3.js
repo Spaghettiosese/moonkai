@@ -72,30 +72,6 @@ fighter({
 });
 
 fighter({
-  id: 'oracle', name: 'ORACLE', title: 'The Seer', side: 'HERO', role: 'Precognition · Traps', color: '#ffe08a', color2: '#2a1a3a',
-  bio: 'A blind seer who sees every possible future at once. She has already seen this fight. She knows how it ends. She is not telling.',
-  quote: 'I have seen this. You lose.', ending: 'Oracle sees a future where everyone lives happily. She spends the rest of her life making sure it happens. It does.',
-  hp: 900, walk: 250, floaty: true, rival: 'echo',
-  model: { build: 'slim', skin: '#e8d0c0', top: '#4a2a6a', pants: '#3a1a5a', skirt: '#5a3a7a', boots: '#ffe08a', hair: { type: 'long', color: '#fff0e0' }, mask: { type: 'band', color: '#ffe08a' }, emblem: { shape: 'eye', color: '#ffe08a' }, weapon: { type: 'orb', color: '#ffe08a' }, float: true },
-  face: { expr: 'calm', eyes: '#ffe08a', mask: { type: 'band', color: '#ffe08a' } },
-  passive: ['Foresight', 'Sees attacks coming: 10% chance to auto-dodge any hit.'],
-  passiveArmor(f) { if (Math.random() < 0.1 && f.state !== 'hit') { f.invul = 20; Game.popWorld(f.x, f.y - f.h - 30, 'FORESEEN', '#ffe08a', 20); return 0; } return 1; },
-  moves: {
-    '5S': Mv.shot({ name: 'Vision Orb', desc: 'An orb that homes slowly.', proj: { speed: 500, r: 14, dmg: 55, homing: 2.5, color: '#ffe08a', life: 3 } }),
-    '6S': Mv.place({ name: 'Fated Strike', desc: 'Light strikes where the enemy WILL be.', spawn: { kind: 'strike', at: 'enemy', dx: 120, delay: 0.6, dmg: 90, style: 'light', color: '#ffe08a' } }),
-    '2S': Mv.counter({ name: 'Precognition', desc: 'Long counter window.', window: 40, dmg: 110 }),
-    '4S': Mv.place({ name: 'Omen', desc: 'A delayed trap.', spawn: { kind: 'mine', at: 'front', dx: 200, dmg: 80, color: '#ffe08a', body: '#4a2a6a', limit: 2 }, cd: 4 }),
-    'jS': Mv.shot({ name: 'Falling Stars', desc: 'Stars downward.', proj: { speed: 700, r: 12, dmg: 32, count: 3, spread: 0.5, angle: 0.9, kind: 'star', color: '#ffe08a' } }),
-  },
-  super: Sup.place({ name: 'Inevitable', desc: 'Every future ends in light.', spawn: { kind: 'strike', at: 'enemy', delay: 0.35, count: 5, spacing: 100, stagger: 0.1, dmg: 65, style: 'light', color: '#ffe08a' } }),
-  ult: { act: 'strike', name: 'THE INEVITABLE', desc: 'A fated strike. On hit: every future where they lose, at once.', dmg: 1100, template: 'freeze', style: 'light', color: '#ffe08a', fx: { el: 'time', color: '#ffe08a', sky: ['#0a0a1a', '#2a1a3a', '#6a4a7a'], lines: ['I have seen this moment.', 'You always lose.'] } },
-  form: { name: 'THIRD EYE', desc: 'Permanent. Dodge chance doubles.', dmg: 1.1, model: { aura: '#ffe08a', mask: null, eyes: { glow: '#ffe08a' }, emblem: { shape: 'eye', color: '#fff' } } },
-  assist: '6S',
-  lines: { intro: ['I have already seen you lose, {opp}.', 'You will step left. Everyone does.', 'Hello. Goodbye.'], win: ['As foreseen.', 'I told you.', 'The future is settled.'], taunt: ['Predictable.', 'Left. Told you.'], form: ['My eye opens.'], ult: ['Inevitable.'], ultHit: ['As foreseen.'] },
-});
-charById('oracle').form.tick = f => { f.def._dodge2 = true; };
-
-fighter({
   id: 'viper', name: 'VIPER', title: 'The Venom Fist', side: 'VILLAIN', role: 'Poison · Stacks', color: '#7aff3a', color2: '#0a1a0a',
   bio: 'A martial artist who trained with snakes until she became one. Her strikes carry venom that grows stronger the longer you stay near her.',
   quote: 'Sssstay close.', ending: 'Viper opens a venom antidote clinic. She charges triple. It\'s the only cure, so people pay.',

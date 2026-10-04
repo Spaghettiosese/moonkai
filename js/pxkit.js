@@ -6,7 +6,7 @@
 //   • scene(): renders a cinematic backdrop at low resolution and scales it up, so skies,
 //     rays and bursts are made of real pixels like the fighters are.
 //   • actor(): a persistent view object so pixel fighters in cutscenes blend between poses.
-//   • pxSetting(): honours Settings → PIXEL ART FIGHTERS.
+//   • on(): honours Settings → PIXEL ART FIGHTERS.
 // ============================================================
 const PxKit = (() => {
   const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
@@ -27,7 +27,7 @@ const PxKit = (() => {
   function portrait(id, drawFn, o = {}) {
     const res = o.res || 64, levels = o.levels || 7, cache = {};
     return (c, opts = {}, def) => {
-      const key = (opts.form ? 'F' : 'N') + (opts.alt ? 'A' : '');
+      const key = (opts.form ? 'F' : 'N') + (opts.alt ? 'A' : '') + (def && def.portraitId ? def.portraitId : '');
       let img = cache[key];
       if (!img) {
         img = mk(res, res); const x = img.getContext('2d', { willReadFrequently: true });

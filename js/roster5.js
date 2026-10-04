@@ -1,15 +1,16 @@
 // ============================================================
-//  MOONKAI — AURELION, the Self-Made God (bespoke)
+//  MOONKAI — AURELION, the Self-Made God (bespoke, pixel engine).
 //
-//  SIN            Most of his blows brand the foe with Sin (gold sigils, max 5). At five
-//                 Sins, JUDGMENT: a pillar of light tracks and smites them (unblockable).
+//  SIN            Most of his blows brand the foe with Sin (gold sigils, max 5). At five Sins,
+//                 JUDGMENT: a pillar of light tracks and smites them (unblockable).
 //  KNEEL          His lunge spends 3 Sins to force the foe to their knees (long stun).
-//  HOLY GROUND    Plants the greatsword: enemy projectiles burn away inside the circle,
-//                 foes standing in it accrue Sin, and he takes less damage there.
+//  HOLY GROUND    Plants the greatsword: enemy projectiles burn away inside the circle, foes
+//                 standing in it accrue Sin, and he takes less damage there.
 //  YOU DARE?      Parry. Striking a god brands you with two Sins.
-//  SERAPHIM ASCENDANT  permanent awakening: six wings of light, Trinity Edict, bigger Judgment.
-//  FALLEN GOD     KO'd while ascended by a MORTAL (not divine)? His pride shatters: he rises
-//                 once as the Fallen God with a new kit built on DAMNATION instead of Sin.
+//  SERAPHIM ASCENDANT  permanent awakening: six wings of light, Trinity Edict, bigger Judgment,
+//                 and Holy Ground becomes the CATHEDRAL: a vast sanctum with blades at its edges.
+//  FALLEN GOD     KO'd while ascended by a MORTAL (not divine)? His pride shatters: he rises once
+//                 as the Fallen God with a new kit built on DAMNATION instead of Sin.
 // ============================================================
 
 // Fighters who count as divine: their finishing blow is a fair judgment, no rage.
@@ -17,7 +18,9 @@ const DEITIES = ['seraph', 'helios', 'judge', 'astra', 'luna', 'aurelion', 'aatr
 
 const aurSfx = (n, ...a) => { try { Sfx[n] && Sfx[n](...a); } catch (e) { } };
 const isFallen = v => !!(v && (v.corrupted || v.fallen));
+const aQ = (x, k = 4) => Math.round(x * k) / k;
 
+// ---------------- vector art (kept as the PIXEL ART FIGHTERS = off look, and for hazards/cutscene swords) ----------------
 // ---------------- art ----------------
 const AUR_PAL = { build: 'athletic', skin: '#f3e6d6', top: '#f7f2e4', topDark: '#cfc4a8', pants: '#ece2c8', pantsDark: '#c8bc9c', boots: '#d6a93a', belt: '#d6a93a', glove: '#f3e6d6', skirt: '#f4eedc', noFace: true, bracers: '#d6a93a' };
 const AUR_ASC_PAL = Object.assign({}, AUR_PAL, { top: '#fffbee', skirt: '#fffaf0', belt: '#ffe08a', bracers: '#ffe08a' });
@@ -203,21 +206,118 @@ function drawAurelionPortrait(c, opts, def) {
   drawHolyBlade(c, 96, 100, 60, -2.2, 0, { fallen: F, glow: A ? 0.8 : 0.3, w: 1.1 });
 }
 
+// ---------------- pixel art ----------------
+const AURPX = PixelArt.make({
+  id: 'aurelion', win: [-195, -300, 440, 350], B: 1.04, trail: 'rgba(255,233,168,', blend: .55,
+  state(v, t, st) {
+    const F = isFallen(v), A = !F && !!v.transformed, wp = A ? (v.wingPairs === undefined ? 3 : v.wingPairs) : 0;
+    return { F, A, wp, ang: Math.round(AURPX.ease(st, 'ang', aurSwingAng(v), .6) * 30) / 30, hair: aQ(Math.sin(t * 3) * 3, 2), cape: aQ(Math.sin(t * 2.5) * 4, 2), flap: aQ(Math.sin(t * (A ? 3.5 : 2)) * .06, 16), blade: F ? 150 : A ? 172 : 150, glow: A ? .8 : F ? .6 : .25 };
+  },
+  body(g, P, s) {
+    const F = s.F, A = s.A, info = {}, { L } = g;
+    const gold = F ? ['#8a0a1a', '#4a0510'] : ['#e0b448', '#a47c28'];
+    const cloth = F ? ['#2c0e16', '#14060a'] : A ? ['#fffbee', '#d8ceb0'] : ['#f7f2e4', '#cfc4a8'], clothF = F ? ['#14060a', '#0a0305'] : ['#cfc4a8', '#a89c7c'], skirt = F ? ['#34121a', '#1a080e'] : A ? ['#fffaf0', '#dcd2b4'] : ['#f4eedc', '#cfc4a8'];
+    const skin = F ? ['#b8aeb0', '#8e8284'] : ['#f3e6d6', '#cdb8a2'], skinF = F ? ['#8e8284', '#6a6062'] : ['#cdb8a2', '#a8927c'];
+    g.humanoid(P, { limb: 1.0, bulk: 1.0, hips: 1.0, skin, skinFar: skinF, top: cloth, topFar: clothF, pants: F ? ['#34121a', '#1a080e'] : ['#ece2c8', '#c8bc9c'], pantsFar: clothF, boots: F ? ['#4a1018', '#240609'] : ['#d6a93a', '#9c7620'], bootsFar: F ? ['#240609', '#14040a'] : ['#9c7620', '#6a5014'],
+      belt: gold, skirt, glove: skin, gloveFar: skinF, bracers: gold, noHead: false }, {
+      back(P) {
+        // base / fallen wings are feathered fans painted in the sprite; ascended wings are light, drawn in pre()
+        if (!A) for (const side of [-1, 1]) {
+          const rot = side * .16 + s.flap * side + (F ? .1 : 0), sx = P.sh[0] - 6, sy = P.sh[1] + 2, len = F ? 108 : 86, spread = F ? .8 : .35, n = 11, a0 = -Math.PI * (.98 + spread * .12), a1 = -Math.PI * (.5 - spread * .2);
+          const rows = [[], [], []];
+          for (let row = 0; row < 3; row++) for (let i = 0; i < n; i++) {
+            if (F && (i * 7 + row * 3) % 5 === 0) continue;
+            const k = i / (n - 1), a = lerp(a0, a1, k) + rot + (F ? Math.sin(i * 3.1 + row) * .06 : 0), Ln = len * (row === 0 ? lerp(1, .62, k) : row === 1 ? .62 : .34);
+            rows[row].push(g.ell(sx + Math.cos(a) * Ln * .55, sy + Math.sin(a) * Ln * .55, Ln * .5, row === 0 ? 6 : 7, a));
+          }
+          const cols = F ? [[side < 0 ? '#12060a' : '#220a10', '#08020a'], ['#2a0c14', '#14060a'], ['#34121a', '#1c0a10']] : [[side < 0 ? '#e8e2d2' : '#fbf8ee', '#b8ae94'], ['#fffdf6', '#d6ccb2'], ['#ffffff', '#e0d8c0']];
+          g.paint(rows[2], ...cols[2]); g.paint(rows[1], ...cols[1]); g.paint(rows[0], ...cols[0]);
+        }
+        const [hx, hy] = P.head;
+        g.paint([g.shape([['M', hx - 8, hy - 11], ['Q', hx - 22, hy + 4, hx - 18 + s.hair, hy + 34], ['L', hx - 8, hy + 26], ['Q', hx - 4, hy + 10, hx + 2, hy - 2]])], ...(F ? ['#d8d0d0', '#a49a9a'] : ['#fff3c8', '#d6b866']));
+        g.paint([g.shape([['M', P.sh[0] - 8, P.sh[1]], ['Q', P.sh[0] - 26, P.hip[1] + 10, P.sh[0] - 30 + s.cape, P.hip[1] + 44], ['L', P.sh[0] - 10, P.hip[1] + 36]])], ...(F ? ['#3a0a14', '#1c050a'] : ['#d6a93a', '#98721c']));
+      },
+      chest(P) {
+        const x = L(P.hip, P.sh, .68)[0], y = L(P.hip, P.sh, .68)[1];
+        if (F) { g.line([[x - 7, y - 6], [x, y + 2], [x + 6, y - 5]], '#ff2a3a', 1.4); g.line([[x, y + 2], [x - 2, y + 12]], '#ff2a3a', 1.4); g.fill(g.ell(x, y, 3.5, 3.5), '#ff1a2a'); return; }
+        const pts = []; for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6, r = i % 2 ? 4 : 8; pts.push([x + Math.cos(a) * r, y + Math.sin(a) * r]); }
+        g.paint([g.poly(pts)], '#e0b448', '#a47c28'); g.fill(g.ell(x, y, 3, 3), A ? '#ffffff' : '#fff6c8');
+      },
+      head(P) {
+        const [hx, hy] = P.head;
+        g.paint([g.shape([['M', hx - 11, hy - 3], ['Q', hx - 6, hy - 16, hx + 8, hy - 13], ['Q', hx + 12, hy - 9, hx + 10, hy - 6], ['L', hx - 2, hy - 8]])], ...(F ? ['#d8d0d0', '#a49a9a'] : ['#fff3c8', '#d6b866']));
+        g.line([[hx - 10, hy - 7], [hx + 10, hy - 8]], F ? '#8a0a1a' : '#d6a93a', 2);
+        g.line([[hx + 10, hy - 3], [hx + 12.5, hy + 2], [hx + 10.5, hy + 3]], '#2a1a12', 1.2);
+        g.line([[hx + 6, hy + 6.5], [hx + 10, hy + 6]], '#2a1a12', 1.2); g.line([[hx + 2, hy - 4.5], [hx + 9, hy - 5.5]], '#2a1a12', 1.3);
+        g.fill(g.poly([[hx + 3, hy - 2], [hx + 6.5, hy - 3.6], [hx + 9.5, hy - 2], [hx + 6.5, hy - 1]]), F ? '#ff4a4a' : '#fff6d0');
+        if (F) { g.line([[hx + 6, hy - 1], [hx + 5, hy + 8]], '#0a0002', 1.2); g.line([[hx - 4, hy + 2], [hx + 1, hy + 6], [hx - 1, hy + 10]], '#ff2a3a', 1); }
+        info.eye = [hx + 6.5, hy - 2]; info.halo = [hx - 2, hy - 22];
+      },
+      pads(P) {
+        const [sx, sy] = P.sh;
+        g.paint([g.ell(sx + 1, sy + 2, 13, 8, -.2, Math.PI, Math.PI * 2.05)], F ? '#2a0a12' : '#e0b448', F ? '#12040a' : '#a47c28');
+        g.paint([-7, 0, 7].map(dx => g.ell(sx + dx, sy - 3, 2.5, 6, -.6)), F ? '#120306' : '#fff6d8', F ? '#080102' : '#d8cca8');
+      },
+      front(P) { // the holy blade: winged guard, long fuller, jagged and cracked when fallen
+        const [hx, hy] = P.fH, a = s.ang, ca = Math.cos(a), sa = Math.sin(a), pt = (u, w) => [hx + ca * u - sa * w, hy + sa * u + ca * w], Ln = s.blade;
+        g.line([pt(-22, 0), pt(4, 0)], F ? '#2a0a10' : '#b08a2a', 5); g.fill(g.ell(...pt(-24, 0), 4, 4), F ? '#8a0a1a' : '#fff0b0');
+        g.paint([-1, 1].map(sg => g.poly([pt(6, 0), pt(10, sg * 10), pt(2, sg * 22), pt(14, sg * 14), pt(16, sg * 3)])), ...(F ? ['#3a1018', '#1a0508'] : ['#e8c060', '#a47c28']));
+        const blade = F ? [pt(14, -5.5), pt(Ln * .82, -4), pt(Ln * .9, -9), pt(Ln * .95, -1), pt(Ln * .87, 2), pt(Ln * .8, 5), pt(14, 5.5)] : [pt(14, -5.5), pt(Ln * .9, -4.5), pt(Ln, 0), pt(Ln * .9, 4.5), pt(14, 5.5)];
+        g.paint([g.poly(blade)], ...(F ? ['#3a0a12', '#12030a'] : ['#f6f3ea', '#b8b2a4']));
+        g.line([pt(18, 0), pt(Ln * (F ? .78 : .85), 0)], F ? '#ff2a3a' : '#d6a93a', 1.6);
+        if (!F) for (let i = 0; i < 6; i++) g.fill(g.ell(...pt(28 + i * Ln * .11, 0), 1.3, 1.3), '#fff6c8');
+        info.tip = pt(Ln, 0);
+      },
+    });
+    return info;
+  },
+  pre(c, v, P, s) {
+    const t = v.anim || 0;
+    if (s.A) glowCircle(c, 0, -80, 140, 'rgba(255,240,180,0.3)', 'rgba(255,220,120,0)');
+    if (s.F) glowCircle(c, 0, -70, 130, 'rgba(200,10,30,0.3)', 'rgba(60,0,0,0)');
+    if (s.A && s.wp > 0) { // wings of pure light, made of chunky pixels
+      c.save(); c.globalCompositeOperation = 'lighter';
+      const pairs = [[-.1, 1.25], [.35, 1.0], [-.55, .8]];
+      for (let w = 0; w < s.wp; w++) {
+        const [rot, sc] = pairs[w], sx = P.sh[0] - 6, sy = P.sh[1] + 2 + w * 6;
+        for (let i = 0; i < 11; i++) {
+          const k = i / 10, a = lerp(-Math.PI * 1.1, -Math.PI * .4, k) + rot + s.flap * (w + 1) * 2, L = 86 * sc * lerp(1, .62, k) * (.92 + .08 * Math.sin(t * 2 + i));
+          for (let j = 4; j < L; j += 4) { const al = (.1 + .3 * (1 - j / L)) * (.7 + .3 * Math.sin(t * 3 + i + w)); c.fillStyle = (i + j / 4) % 3 ? `rgba(255,214,110,${al})` : `rgba(255,248,214,${al * 1.2})`; c.fillRect(Math.round((sx + Math.cos(a) * j) / 3) * 3, Math.round((sy + Math.sin(a) * j) / 3) * 3, 5, 5); }
+        }
+      }
+      c.restore();
+    }
+  },
+  post(c, v, P, s, info) {
+    const t = v.anim || 0; if (!info || !info.halo) return; const [hx, hy] = info.halo;
+    c.save(); c.globalCompositeOperation = 'lighter';
+    glowCircle(c, info.eye[0], info.eye[1], s.F ? 8 : 6, s.F ? 'rgba(255,30,40,1)' : 'rgba(255,220,120,1)', 'rgba(0,0,0,0)');
+    if (s.F) { c.strokeStyle = '#ff2a3a'; c.lineWidth = 3; for (let i = 0; i < 4; i++) { const a = t * 1.2 + i * Math.PI / 2; c.save(); c.translate(hx + Math.cos(a) * 16, hy + Math.sin(a) * 4); c.rotate(a); c.beginPath(); c.arc(0, 0, 8, 0, 1.1); c.stroke(); c.restore(); } }
+    else { // the halo as a ring of pixels (a sun-crown of rays once ascended)
+      for (let i = 0; i < 22; i++) { const a = i / 22 * Math.PI * 2; c.fillStyle = s.A ? '#fffbe0' : '#ffd878'; c.fillRect(Math.round(hx + Math.cos(a) * 15) - 1, Math.round(hy + Math.sin(a) * 4.5) - 1, 3, 3); }
+      if (s.A) for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6 + t * .4; for (let j = 0; j < 3; j++) { c.fillStyle = 'rgba(255,250,210,0.9)'; c.fillRect(Math.round(hx + Math.cos(a) * (19 + j * 3)) - 1, Math.round(hy + Math.sin(a) * (6 + j * 1.2)) - 1, 3, 3); } }
+    }
+    if (info.tip && (s.A || s.F)) glowCircle(c, info.tip[0], info.tip[1], 12, s.F ? 'rgba(255,30,40,0.6)' : 'rgba(255,236,170,0.6)', 'rgba(0,0,0,0)');
+    c.restore();
+  },
+});
+const aurPortrait = PxKit.portrait('aurelion', drawAurelionPortrait, { res: 64, levels: 8, dither: 0.3 });
+
 // ---------------- Sin & Judgment ----------------
 function aurSin(a, t, n) {
   if (!t || t.hp <= 0 || !Game.battle) return;
-  Combat.mark(t, a, 'sin', n, { max: 5, dur: 8, color: '#ffd35a', label: 'SIN', onMax: (tt, o) => aurJudgment(o, tt) });
+  if (n > 0) aurSfx('aurBrand'); Combat.mark(t, a, 'sin', n, { max: 5, dur: 8, color: '#ffd35a', label: 'SIN', onMax: (tt, o) => aurJudgment(o, tt) });
 }
 function aurJudgment(owner, t) {
   Combat.consumeMark(t, 'sin');
   const big = owner.form;
   Game.popWorld(t.x, t.y - t.h - 60, 'JUDGMENT', '#fff0b0', 28);
-  aurSfx('bell');
+  aurSfx('aurBellToll');
   Combat.telegraph(owner, { x: t.x, follow: t, track: 0.3, r: big ? 110 : 80, life: 22, color: '#fff0b0', column: true,
     onFire: h => {
       for (const o of Combat.targets(owner.side)) if (Math.abs(o.x - h.x) < h.r) Combat.resolveHit(o, owner, H_({ dmg: big ? 140 : 110, guard: 'unblock', hs: 40, kb: [0, -520], launch: true, stun: 0.3, sfx: 'h' }), { proj: true, fromX: h.x });
       Combat.addHazard({ kind: 'aurPillar', owner, side: owner.side, x: h.x, r: h.r, life: 22, color: '#fff6d0' });
-      Cam.shake = Math.max(Cam.shake, 12); aurSfx('zap'); aurSfx('boom');
+      Cam.shake = Math.max(Cam.shake, 12); aurSfx('aurSmite');
     } });
 }
 function aurDamn(a, t, n) {
@@ -228,7 +328,7 @@ function aurDamn(a, t, n) {
     Combat.telegraph(o, { x: tt.x, follow: tt, track: 0.35, r: 90, life: 18, color: '#ff2a3a', column: true, onFire: h => {
       for (const e of Combat.targets(o.side)) if (Math.abs(e.x - h.x) < h.r) { const r = Combat.resolveHit(e, o, H_({ dmg: 130, guard: 'unblock', hs: 40, kb: [0, -560], launch: true, sfx: 'h' }), { proj: true, fromX: h.x }); if (r === 'hit') o.hp = Math.min(o.maxHp, o.hp + 100); }
       Combat.addHazard({ kind: 'aurPillar', owner: o, side: o.side, x: h.x, r: h.r, life: 22, color: '#ff2a3a', dark: true });
-      Cam.shake = Math.max(Cam.shake, 12); aurSfx('boom');
+      Cam.shake = Math.max(Cam.shake, 12); aurSfx('aurSmite');
     } });
   } });
 }
@@ -236,24 +336,34 @@ const aurSinOnHit = n => (a, t) => aurSin(a, t, n);
 const aurDamnOnHit = n => (a, t) => aurDamn(a, t, n);
 
 // ---------------- base kit ----------------
-const AUR_EDICT = Mv.shot({ name: 'Divine Edict', desc: 'A piercing lance of light. Brands 1 Sin.', s: 16, swing: [-0.2, -0.7, 0], pose: 'punch', ai: { min: 150, max: 1600, use: 'zone' },
+const AUR_EDICT = Mv.shot({ name: 'Divine Edict', desc: 'A piercing lance of light. Brands 1 Sin.', s: 16, swing: [-0.2, -0.7, 0], pose: 'punch', ev: { 12: () => aurSfx('aurEdict') }, ai: { min: 150, max: 1600, use: 'zone' },
   proj: { speed: 1500, r: 10, dmg: 52, kind: 'spear', color: '#ffe9a8', core: '#fff', pierce: true, hs: 20, kb: [220, -40], onHit: (t, p) => aurSin(p.owner, t, 1) } });
-const AUR_TRINITY = Mv.shot({ name: 'Trinity Edict', desc: 'Three lances of light. Each brands 1 Sin.', s: 16, swing: [-0.2, -0.7, 0], pose: 'punch', ai: { min: 150, max: 1600, use: 'zone' },
+const AUR_TRINITY = Mv.shot({ name: 'Trinity Edict', desc: 'Three lances of light. Each brands 1 Sin.', s: 16, swing: [-0.2, -0.7, 0], pose: 'punch', ev: { 12: () => aurSfx('aurEdict'), 14: () => aurSfx('aurEdict') }, ai: { min: 150, max: 1600, use: 'zone' },
   proj: { speed: 1500, r: 10, dmg: 34, count: 3, spread: 0.3, kind: 'spear', color: '#fff4c8', core: '#fff', pierce: true, hs: 18, kb: [180, -40], onHit: (t, p) => aurSin(p.owner, t, 1) } });
 const AUR_KNEEL = mk({ name: 'Kneel', desc: 'A long lunge. With 3+ Sins, it spends them and forces the foe to their knees.', pose: 'dash', s: 12, a: 10, r: 18, swing: [-0.3, -0.9, 0.02],
-  vel: [[12, 22, 1100, null]], hit: { dmg: 88, box: [-10, -115, 130, 95], kb: [520, -180], hs: 22, bs: 14 }, ai: { min: 0, max: 220, use: 'approach' },
+  ev: { 9: () => aurSfx('aurEdict') }, vel: [[12, 22, 1100, null]], hit: { dmg: 88, box: [-10, -115, 130, 95], kb: [520, -180], hs: 22, bs: 14 }, ai: { min: 0, max: 220, use: 'approach' },
   onHit: (a, t) => {
     if (Combat.markCount(t, 'sin') >= 3) {
       Combat.mark(t, a, 'sin', -3, { max: 5, dur: 8, color: '#ffd35a' });
       if (Combat.markCount(t, 'sin') <= 0) delete t.marks.sin;
       t.vx = 0; t.hitstun = Math.max(t.hitstun, 70); t.status.stun = Math.max(t.status.stun || 0, 1.1);
       if (t.airborne) t.vy = 900;
-      Game.popWorld(t.x, t.y - t.h - 40, 'KNEEL.', '#fff0b0', 30); aurSfx('bell'); Cam.shake = 10;
+      Game.popWorld(t.x, t.y - t.h - 40, 'KNEEL.', '#fff0b0', 30); aurSfx('aurBellToll'); Cam.shake = 10;
     } else aurSin(a, t, 1);
   } });
 const AUR_GROUND = mk({ name: 'Holy Ground', desc: 'Plants the sword: projectiles burn away inside, foes inside accrue Sin, he takes 20% less damage there.', pose: 'slam', s: 14, a: 1, r: 20, cd: 9,
   swing: [-1.6, -2.2, 1.45], ai: { min: 0, max: 260, use: 'trap' },
-  ev: { 14: f => { Combat.hazards = Combat.hazards.filter(h => !(h.kind === 'aurGround' && h.owner === f)); Combat.addHazard({ kind: 'aurGround', owner: f, side: f.side, x: f.x, r: 180, life: Math.round(3.5 * FPS) }); aurSfx('bell'); Cam.shake = 6; } } });
+  ev: { 14: f => { Combat.hazards = Combat.hazards.filter(h => !(h.kind === 'aurGround' && h.owner === f)); Combat.addHazard({ kind: 'aurGround', owner: f, side: f.side, x: f.x, r: 180, life: Math.round(3.5 * FPS) }); aurSfx('aurBlessing'); Cam.shake = 6; } } });
+// Ascended: Holy Ground becomes a cathedral: a wide sanctum with two blades of light that fall at its edges.
+const AUR_CATHEDRAL = mk({ name: 'Cathedral', desc: 'Ascended Holy Ground: a vast sanctum, and two blades of light fall at its edges, each branding a Sin.', pose: 'slam', s: 14, a: 1, r: 22, cd: 10,
+  swing: [-1.6, -2.2, 1.45], ai: { min: 0, max: 360, use: 'trap' },
+  ev: { 14: f => {
+    Combat.hazards = Combat.hazards.filter(h => !(h.kind === 'aurGround' && h.owner === f));
+    Combat.addHazard({ kind: 'aurGround', owner: f, side: f.side, x: f.x, r: 280, life: Math.round(4.5 * FPS) }); aurSfx('aurChoir', 0, 1.6); Cam.shake = 8;
+    for (const s of [-1, 1]) Combat.telegraph(f, { x: clamp(f.x + s * 250, 40, Arena.stage.width - 40), r: 56, life: 26, color: '#fff0b0', column: true, onFire: h => {
+      for (const o of Combat.targets(f.side)) if (Math.abs(o.x - h.x) < h.r) { const r = Combat.resolveHit(o, f, H_({ dmg: 56, guard: 'mid', hs: 22, kb: [s * -200, -420], launch: true, sfx: 'h' }), { proj: true, fromX: h.x }); if (r === 'hit') aurSin(f, o, 1); }
+      Combat.addHazard({ kind: 'aurPillar', owner: f, side: f.side, x: h.x, r: h.r, life: 18, color: '#fff6d0', sword: true }); aurSfx('aurSmite'); } });
+  } } });
 const AUR_DARE = Object.assign(Mv.counter({ name: 'You Dare?', desc: 'Parry. Striking a god brands the fool with 2 Sins.', window: 22, dmg: 120 }), { swing: [-1.57, -1.57, -1.57] });
 const AUR_DESCENT = Mv.dive({ name: 'Descent of Heaven', desc: 'A plunging sword dive. Brands 1 Sin.', pose: 'air_spike', vx: 520, vy: 1400, hit: { dmg: 80, box: [-10, -70, 110, 80], gb: true, kb: [200, 900], guard: 'high' } });
 AUR_DESCENT.onHit = aurSinOnHit(1);
@@ -264,17 +374,17 @@ const AUR_SUPER = superize(mk({ name: 'Edenfall', desc: 'Swords of light rain on
     const n = 3 + Combat.consumeMark(t, 'sin');
     for (let i = 0; i < n; i++) Combat.telegraph(f, { x: clamp(t.x + (i - (n - 1) / 2) * 64, 40, Arena.stage.width - 40), r: 48, life: 22 + i * 5, color: '#fff0b0', column: true, onFire: h => {
       for (const o of Combat.targets(f.side)) if (Math.abs(o.x - h.x) < h.r) Combat.resolveHit(o, f, H_({ dmg: 46, guard: 'mid', hs: 18, bs: 12, kb: [0, -320], launch: true, sfx: 'h' }), { proj: true, fromX: h.x, move: AUR_SUPER });
-      Combat.addHazard({ kind: 'aurPillar', owner: f, side: f.side, x: h.x, r: h.r, life: 14, color: '#fff6d0', sword: true }); aurSfx('clang');
+      Combat.addHazard({ kind: 'aurPillar', owner: f, side: f.side, x: h.x, r: h.r, life: 14, color: '#fff6d0', sword: true }); aurSfx('aurSmite');
     } });
   } } }), 100);
 
 const AUR_ULT = superize(mk({ name: 'THRONE OF HEAVEN', desc: 'A colossal sword falls on the foe, tracking them. Blockable. Must connect.', pose: 'cast_up', s: 18, a: 36, r: 22, swing: [-1.57, -1.57, -1.57],
-  ev: { 18: f => {
+  ev: { 1: () => aurSfx('aurChoir', 0, 1.8), 18: f => {
     const t = f.opp; if (!t) return;
     Combat.telegraph(f, { x: t.x, follow: t, track: 0.2, r: 110, life: 34, color: '#ffe08a', column: true, onFire: h => {
       for (const o of Combat.targets(f.side)) if (Math.abs(o.x - h.x) < h.r) Combat.resolveHit(o, f, H_({ dmg: 10, hs: 60, kb: [0, 0], ultConnect: true, guard: 'mid' }), { proj: true, fromX: h.x, move: AUR_ULT });
       Combat.addHazard({ kind: 'aurPillar', owner: f, side: f.side, x: h.x, r: h.r, life: 30, color: '#fff6d0', sword: true, giant: true });
-      Cam.shake = 20; aurSfx('boom'); aurSfx('clang');
+      Cam.shake = 20; aurSfx('aurSmite'); aurSfx('boom');
     } });
   } } }), 300);
 AUR_ULT.id = 'aurelion_ult'; AUR_ULT.recoverWhiff = 30;
@@ -286,7 +396,7 @@ const aurelion = fighter({
   quote: 'Kneel. It is the only posture that suits you.',
   ending: 'Aurelion builds a cathedral to himself in Metro City. Attendance is zero. He preaches to the pigeons every Sunday and calls it a full house.',
   hp: 980, walk: 250, deity: true, rival: 'seraph', jumps: 2, scale: 1.08, handArt: true,
-  draw: drawAurelion, drawPortrait: drawAurelionPortrait, transformCutscene: f => csAurelionAscend(f),
+  draw: (c, v) => PxKit.on() ? AURPX.draw(c, v) : drawAurelion(c, v), drawPortrait: (c, o, d) => PxKit.on() ? aurPortrait(c, o, d) : drawAurelionPortrait(c, o, d), transformCutscene: f => csAurelionAscend(f),
   model: { skin: '#f3e6d6' }, face: { expr: 'cold' },
   style: { reach: 1.4, weapon: true, speed: 1.1, power: 1, poses: { '5M': 'heavy', '5H': 'slam' } },
   passive: ['Sin & Judgment', 'Edict, Kneel, Descent, heavy slashes and Holy Ground brand Sins. Five Sins call down an unblockable pillar of Judgment. Takes 10% less damage above half health.'],
@@ -300,7 +410,7 @@ const aurelion = fighter({
   super: AUR_SUPER,
   ult: { act: 'strike', name: 'THRONE OF HEAVEN', dmg: 1100, fx: { el: 'light', color: '#ffe08a', sky: ['#2a2010', '#9a7a3a', '#fff0c0'] } },
   form: { name: 'SERAPHIM ASCENDANT', desc: 'Permanent. Six wings of light, flight, a longer blade, Trinity Edict, heavies brand 2 Sins, grander Judgment. Beware: falling while ascended breaks his pride.',
-    cost: 300, flight: true, dmg: 1.08, speed: 1.06, scale: 1.12, jump: 1.1, moves: { '5S': AUR_TRINITY } },
+    cost: 300, flight: true, dmg: 1.08, speed: 1.06, scale: 1.12, jump: 1.1, moves: { '5S': AUR_TRINITY, '2S': AUR_CATHEDRAL } },
   assist: '5S',
   lines: {
     intro: ['You may address me as "Your Radiance," {opp}.', 'I have read your prayers. They were very boring.', 'Kneel now and I will make this quick.', 'A mortal? Here? How quaint.'],
@@ -318,7 +428,7 @@ FALLEN_ULT.swing = [-1.2, -2.8, 0.4];
 aurelion.corruptForm = {
   name: 'FALLEN GOD', desc: 'Rage reborn at 25% health. Sin becomes DAMNATION: four marks and a crimson pillar that heals him. Stronger and faster, but he takes more damage and his corruption burns him.',
   manual: false, flight: true, dmg: 1.1, speed: 1.08, armor: 1.25, lifesteal: 0.05, scale: 1.14, reviveFrac: 0.25, color: '#ff2a3a',
-  draw: drawAurelion, drawPortrait: drawAurelionPortrait, passiveArmor: null,
+  draw: (c, v) => PxKit.on() ? AURPX.draw(c, v) : drawAurelion(c, v), drawPortrait: (c, o, d) => PxKit.on() ? aurPortrait(c, o, d) : drawAurelionPortrait(c, o, d), passiveArmor: null,
   onHit: (a, t) => { const id = a.move && a.move.id; if (id === '5H' || id === 'jH') aurDamn(a, t, 1); },
   passive: ['Corruption', 'Burns 4 HP per second (never below 1). Heals 5% of damage dealt. Takes 25% more damage. Four Damnations call a crimson pillar that heals him.'],
   passiveTick: f => { if (f.st % 30 === 0 && f.hp > 1 && f.state !== 'ko') f.hp = Math.max(1, f.hp - 2); },
@@ -383,158 +493,147 @@ Combat.drawHz.aurPillar = function (c, h) {
   c.restore();
 };
 
-// ---------------- cinematics ----------------
-function aurSkyGold(c, k) {
-  const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, `rgb(${lerp(40, 255, k) | 0},${lerp(30, 236, k) | 0},${lerp(20, 190, k) | 0})`); g.addColorStop(1, `rgb(${lerp(90, 200, k) | 0},${lerp(70, 150, k) | 0},${lerp(40, 70, k) | 0})`);
-  c.fillStyle = g; c.fillRect(0, 0, W, H);
+// ---------------- cinematics (pixel scenes: skies, rays and swords are made of real pixels) ----------------
+function aurSkyPx(x, a, b) { const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, a); g.addColorStop(1, b); x.fillStyle = g; x.fillRect(0, 0, W, H); }
+function aurRaysPx(x, cx, cy, t, n, col, alpha) {
+  x.save(); x.globalCompositeOperation = 'lighter'; x.fillStyle = col;
+  for (let i = 0; i < n; i++) { const a = i * Math.PI * 2 / n + t * .15; x.globalAlpha = alpha * (.5 + .5 * Math.sin(i * 3 + t)); x.beginPath(); x.moveTo(cx, cy); x.lineTo(cx + Math.cos(a - .04) * 1600, cy + Math.sin(a - .04) * 1600); x.lineTo(cx + Math.cos(a + .04) * 1600, cy + Math.sin(a + .04) * 1600); x.fill(); }
+  x.restore();
 }
-function aurRays(c, x, y, t, n, col, alpha) {
-  c.save(); c.globalCompositeOperation = 'lighter'; c.fillStyle = col;
-  for (let i = 0; i < n; i++) { const a = i * Math.PI * 2 / n + t * 0.15; c.globalAlpha = alpha * (0.5 + 0.5 * Math.sin(i * 3 + t)); c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a - 0.04) * 1600, y + Math.sin(a - 0.04) * 1600); c.lineTo(x + Math.cos(a + 0.04) * 1600, y + Math.sin(a + 0.04) * 1600); c.fill(); }
-  c.restore();
-}
-function drawClouds(c, t, y, col, n = 9) { c.fillStyle = col; for (let i = 0; i < n; i++) { const x = ((i * 190 + t * 40) % (W + 300)) - 150; for (let j = 0; j < 4; j++) { c.beginPath(); c.arc(x + j * 42, y + Math.sin(i + j) * 12, 44 + (j % 2) * 16, 0, Math.PI * 2); c.fill(); } } }
+function aurCloudsPx(x, t, y, col, n = 9) { x.fillStyle = col; for (let i = 0; i < n; i++) { const cx = ((i * 190 + t * 40) % (W + 300)) - 150; for (let j = 0; j < 4; j++) { x.beginPath(); x.arc(cx + j * 42, y + Math.sin(i + j) * 12, 44 + (j % 2) * 16, 0, 7); x.fill(); } } }
+function aurRuins(x, col, lit) { x.fillStyle = col; for (let i = 0; i < 9; i++) { const bx = i * 150 - 30, bh = 140 + (i * 53 % 5) * 40; x.fillRect(bx, H - 80 - bh, 38, bh); x.fillRect(bx + 52, H - 80 - bh * .6, 30, bh * .6); if (i % 2) { x.beginPath(); x.moveTo(bx - 10, H - 80 - bh); x.quadraticCurveTo(bx + 55, H - 80 - bh - 70, bx + 120, H - 80 - bh); x.lineTo(bx + 100, H - 80 - bh); x.fill(); } } if (lit) { x.fillStyle = lit; x.fillRect(0, H - 80, W, 6); } }
 
-// Awakening: Heaven tears open, three pairs of wings unfold, the halo ignites into a sun-crown.
+// SERAPHIM ASCENDANT — Heaven tears open over the ruins; three pairs of wings unfold, one bell at a time.
 function csAurelionAscend(f) {
-  const d = f.def, fx = new ParticleSystem(1600);
+  const d = f.def, fx = new ParticleSystem(1600), A = PxKit.actor(d);
   return {
-    name: 'SERAPHIM ASCENDANT', dur: 4.6, fx,
-    cues: [[0, () => aurSfx('bell')], [1.2, () => { aurSfx('charge', 1); }], [2.3, () => { aurSfx('bell'); aurSfx('boom'); }], [3.2, () => aurSfx('blast')]],
+    name: 'SERAPHIM ASCENDANT', dur: 6.4, fx,
+    cues: [[0, () => aurSfx('aurBellToll')], [1.2, () => aurSfx('aurFall')], [2.2, () => aurSfx('aurBlessing')], [2.9, () => aurSfx('aurBlessing')], [3.6, () => aurSfx('aurBlessing')], [4.0, () => { aurSfx('aurChoir', 0, 2.4); aurSfx('aurSmite'); }]],
     draw(c, t) {
-      aurSkyGold(c, 0.25 + 0.75 * seg(t, 0.8, 2.4));
-      const tear = ease.out(seg(t, 0.2, 1.4));
-      c.save(); c.globalCompositeOperation = 'lighter'; c.fillStyle = 'rgba(255,255,230,0.9)';
-      c.beginPath(); c.moveTo(W / 2, 0); c.lineTo(W / 2 - 60 * tear, H * 0.35 * tear); c.lineTo(W / 2, H * 0.55 * tear); c.lineTo(W / 2 + 60 * tear, H * 0.35 * tear); c.fill(); c.restore();
-      aurRays(c, W / 2, H * 0.3, t, 18, '#fff4c8', 0.35 * tear);
-      drawClouds(c, t, H - 90, 'rgba(255,250,235,0.85)');
+      const tear = ease.out(seg(t, .8, 2.0)), day = ease.inOut(seg(t, 1.6, 3.9)), pairs = t < 2.2 ? 0 : t < 2.9 ? 1 : t < 3.6 ? 2 : 3, up = ease.inOut(seg(t, 1.8, 3.8)), flare = seg(t, 3.9, 4.4);
+      PxKit.scene(c, x => {
+        aurSkyPx(x, `rgb(${lerp(10, 255, day) | 0},${lerp(8, 236, day) | 0},${lerp(16, 190, day) | 0})`, `rgb(${lerp(40, 210, day) | 0},${lerp(30, 160, day) | 0},${lerp(30, 80, day) | 0})`);
+        // the sky cracks open: a jagged vertical rift that widens
+        x.save(); x.globalCompositeOperation = 'lighter'; x.fillStyle = 'rgba(255,255,236,0.95)'; x.beginPath(); x.moveTo(W / 2, 0);
+        for (let i = 0; i <= 9; i++) x.lineTo(W / 2 - (70 - i * 6) * tear + Math.sin(i * 7.3) * 12 * tear, i * H * .055 * tear * 1.2); x.lineTo(W / 2, H * .6 * tear);
+        for (let i = 9; i >= 0; i--) x.lineTo(W / 2 + (70 - i * 6) * tear + Math.sin(i * 5.1) * 12 * tear, i * H * .055 * tear * 1.2); x.fill(); x.restore();
+        aurRaysPx(x, W / 2, H * .22, t, 20, '#fff4c8', .35 * tear); aurCloudsPx(x, t, H - 110, `rgba(${lerp(30, 255, day) | 0},${lerp(24, 250, day) | 0},${lerp(30, 235, day) | 0},0.9)`);
+        aurRuins(x, `rgb(${lerp(12, 190, day * .6) | 0},${lerp(10, 170, day * .6) | 0},${lerp(18, 130, day * .6) | 0})`, null);
+      }, .3);
       for (let i = 0; i < 3; i++) fx.add({ x: rand(0, W), y: -10, vx: rand(-20, 20), vy: rand(120, 260), life: 3, size: rand(3, 6), color: pick(['#fff', '#ffe9a0']), glow: true });
       fx.draw(c);
-      const pairs = Math.min(3, Math.floor(seg(t, 1.4, 2.4) * 3.99));
-      const v = { pose: t < 1.4 ? 'kneel' : t < 2.3 ? 'charge' : 'victory', anim: t, transformed: pairs >= 3 || t > 2.3 };
-      c.save(); c.globalAlpha = 1; drawCharAt(c, d, W / 2, H - 40 - 60 * seg(t, 1.4, 2.6), 2.6, 1, v); c.restore();
-      caption(c, 'Heaven was a draft. I am the final edition.', t, 0.1, 1.35, '#fff6d0');
-      if (t > 1.4 && t < 2.3) bigText(c, ['I', 'II', 'III'][Math.max(0, pairs - 1)] || 'I', W / 2, 120, 90, '#fff', '#8a6a20');
-      flashAt(c, t, 2.3, 2.6, '#fffbe8');
-      titleSlam(c, 'SERAPHIM ASCENDANT', 'I AM THE LIGHT YOU PRAY TO', t, 2.5, '#ffd35a', 84);
+      // each pair of wings is announced by a pixel numeral
+      if (t > 2.2 && t < 3.9) { const nk = [2.2, 2.9, 3.6][pairs - 1]; c.globalAlpha = 1 - seg(t, nk + .5, nk + .7); bigText(c, ['I', 'II', 'III'][pairs - 1], W / 2, 130, 100, '#ffffff', '#8a6a20'); c.globalAlpha = 1; }
+      A(c, W / 2, H - 86 - up * 70, 2.7 + up * .2, t, t < 1.8 ? 'kneel' : t < 3.9 ? 'charge' : 'victory', { transformed: pairs > 0, wingPairs: pairs });
+      caption(c, 'Heaven was a draft. I am the final edition.', t, .1, 1.7, '#fff6d0');
+      flashAt(c, t, 3.9, 4.3, '#fffbe8');
+      titleSlam(c, 'SERAPHIM ASCENDANT', 'I AM THE LIGHT YOU PRAY TO', t, 4.4, '#ffd35a', 84);
     },
   };
 }
 
-// Ultimate: the foe is forced to kneel before a colossal throne; a thousand swords fall.
+// THRONE OF HEAVEN — the foe is forced to their knees before a colossal throne; a thousand blades hang in the sky, then fall.
 function csAurelionThrone(a, opp) {
-  const fx = new ParticleSystem(2600), d = a.def;
-  const oppScale = opp.transformed && opp.def.id === 'eric' ? 0.55 : 1.3;
-  const swords = Array.from({ length: 70 }, (_, i) => ({ x: rand(60, W - 60), y: rand(-600, -80), at: 3.2 + i * 0.012, len: rand(90, 160) }));
+  const fx = new ParticleSystem(2600), d = a.def, A = PxKit.actor(d), oppScale = opp.transformed && opp.def.id === 'eric' ? 0.55 : 1.6;
+  const swords = []; for (let r = 0; r < 5; r++) for (let i = 0; i < 18; i++) swords.push({ x: 40 + i * 68 + (r % 2) * 34, y: 40 + r * 62, len: 110 + (i * 17 + r * 31) % 50, at: 4.5 + r * .22 + (i % 6) * .03 });
   return {
-    name: 'THRONE OF HEAVEN', dur: 7.2, fx,
-    cues: [[0, () => aurSfx('bell')], [1.1, () => aurSfx('slam')], [2.3, () => aurSfx('bell')], [3.2, () => aurSfx('charge', 1)], [4.1, () => { aurSfx('boom'); aurSfx('boom', 0.2); aurSfx('clang'); }]],
+    name: 'THRONE OF HEAVEN', dur: 8.6, fx,
+    cues: [[0, () => aurSfx('aurBellToll')], [1.1, () => aurSfx('aurHeart')], [1.3, () => aurSfx('aurBrand')], [2.4, () => aurSfx('aurChoir', 0, 3)], [3.4, () => aurSfx('aurBlessing')], [4.5, () => aurSfx('aurFall')], [5.0, () => aurSfx('aurSmite')], [5.4, () => aurSfx('aurSmite', 0.1)], [5.8, () => aurSfx('aurSmite', 0.2)], [6.0, () => { aurSfx('aurShatter'); aurSfx('boom'); }]],
     draw(c, t) {
-      aurSkyGold(c, 0.85);
-      aurRays(c, W / 2, 120, t, 22, '#fff8d8', 0.35);
-      drawClouds(c, t * 0.5, H - 80, 'rgba(255,250,235,0.95)', 10);
-      // the throne
-      const tk = ease.out(seg(t, 0.2, 1.2));
-      c.save(); c.translate(W / 2, H - 110); c.scale(tk, tk);
-      c.fillStyle = '#f4ecd6'; c.strokeStyle = '#b8903a'; c.lineWidth = 4;
-      c.beginPath(); c.moveTo(-170, 0); c.lineTo(-150, -330); c.lineTo(-90, -420); c.lineTo(0, -470); c.lineTo(90, -420); c.lineTo(150, -330); c.lineTo(170, 0); c.closePath(); c.fill(); c.stroke();
-      c.fillStyle = '#e6d8b0'; c.fillRect(-200, -60, 400, 60); c.strokeRect(-200, -60, 400, 60);
-      c.globalCompositeOperation = 'lighter'; glowCircle(c, 0, -330, 120, 'rgba(255,240,180,0.8)', 'rgba(0,0,0,0)'); c.restore();
-      if (t < 3.2) {
-        drawCharAt(c, d, W / 2, H - 170, 1.9, 1, { pose: t < 2.3 ? 'intro' : 'victory', anim: t, transformed: true });
-        silhouette(c, o => drawCharAt(o, opp.def, W * 0.5, H - 20, oppScale * 1.3, -1, { pose: t > 1.1 ? 'kneel' : 'hurt', anim: t, transformed: opp.transformed }), '#3a2a10');
-        if (t > 1.1 && t < 2.3) { c.globalAlpha = seg(t, 1.1, 1.3); bigText(c, 'KNEEL.', W / 2, 150, 120, '#fff', '#8a6a20'); c.globalAlpha = 1; }
-        caption(c, 'You stand in the presence of a god.', t, 0.1, 1.05, '#fff6d0');
-        if (t > 2.3) { const k = seg(t, 2.3, 3.2); for (const s of swords) { c.globalAlpha = k; drawHolyBlade(c, s.x, s.y + 120, s.len, Math.PI / 2, t, { glow: 0.8 }); } c.globalAlpha = 1; caption(c, 'Be judged.', t, 2.35, 3.15, '#fff6d0'); }
-      } else if (t < 4.6) {
-        silhouette(c, o => drawCharAt(o, opp.def, W * 0.5, H - 20, oppScale * 1.3, -1, { pose: 'kneel', anim: t, transformed: opp.transformed }), '#3a2a10');
-        for (const s of swords) { const p = seg(t, s.at, s.at + 0.35); if (p <= 0) { drawHolyBlade(c, s.x, s.y + 120, s.len, Math.PI / 2, t, { glow: 0.8 }); continue; }
-          const tx = lerp(s.x, W / 2 + (s.x - W / 2) * 0.15, p), ty = lerp(s.y + 120, H - 120, p * p);
-          drawHolyBlade(c, tx, ty, s.len, Math.PI / 2 + (tx - s.x) * 0.0006, t, { glow: 1 });
-          if (p >= 1 && !s.hit) { s.hit = true; fx.burst(tx, H - 90, 8, { color: ['#fff', '#ffe9a0'], size: 7, speed: 300, glow: true, life: 0.4 }); } }
-        fx.draw(c);
-        flashAt(c, t, 4.1, 4.5, '#fffbe8');
+      const hang = ease.out(seg(t, 2.4, 3.6)), fall = t - 4.5, white = ease.in(seg(t, 5.0, 6.0)), after = t - 6.1;
+      PxKit.scene(c, x => {
+        aurSkyPx(x, '#3a2c10', '#e8c870'); aurRaysPx(x, W / 2, 120, t, 24, '#fff8d8', .35); aurCloudsPx(x, t * .5, H - 80, 'rgba(255,250,235,0.95)', 10);
+        // the throne: tall, gold-edged, wings of stone
+        const tk = ease.out(seg(t, .1, 1.1)); x.save(); x.translate(W / 2, H - 100); x.scale(tk, tk); x.fillStyle = '#f4ecd6'; x.strokeStyle = '#b8903a'; x.lineWidth = 6;
+        x.beginPath(); x.moveTo(-170, 0); x.lineTo(-150, -330); x.lineTo(-90, -420); x.lineTo(0, -470); x.lineTo(90, -420); x.lineTo(150, -330); x.lineTo(170, 0); x.closePath(); x.fill(); x.stroke();
+        x.fillStyle = '#e6d8b0'; x.fillRect(-210, -60, 420, 60); x.strokeRect(-210, -60, 420, 60); x.globalCompositeOperation = 'lighter'; glowCircle(x, 0, -330, 130, 'rgba(255,240,180,0.8)', 'rgba(0,0,0,0)'); x.restore();
+        if (after < 0) { // the swords of the host, row on row
+          for (const s of swords) { const p = clamp(fall - (s.at - 4.5), 0, 1), k = hang * (p < 1 ? 1 : 0); if (!k && p <= 0) continue; const fy = p <= 0 ? s.y + (1 - hang) * -300 : lerp(s.y, H - 130, p * p); if (p >= 1) continue; x.globalAlpha = Math.min(1, hang * 1.4); drawHolyBlade(x, s.x, fy, s.len, Math.PI / 2, t, { glow: .6 + p }); x.globalAlpha = 1; }
+        } else { x.fillStyle = `rgba(40,30,10,${Math.min(.6, after * .8)})`; x.fillRect(0, 0, W, H); aurRaysPx(x, W / 2, H - 120, t, 30, '#fff', .45); for (let i = 0; i < 36; i++) { const bx = W / 2 + (i - 18) * 20, bh = 70 + ((i * 37) % 80); drawHolyBlade(x, bx, H - 80 - bh, bh + 40, Math.PI / 2 + (i - 18) * .025, t, { glow: .5, w: .8 }); } }
+      }, .3);
+      // the figures
+      if (after < 0) {
+        A(c, W / 2, H - 175, 2.0, t, t < 2.4 ? 'intro' : 'victory', { transformed: true, wingPairs: 3 });
+        const sink = ease.out(seg(t, .8, 1.3));
+        silhouette(c, o => drawCharAt(o, opp.def, W * .7, H - 30 + 10 * sink, oppScale, -1, { pose: t > 1.1 ? 'kneel' : 'hurt', anim: t, transformed: opp.transformed }), '#4a3a14');
+        if (t > 1.1 && t < 2.4) { c.globalAlpha = seg(t, 1.1, 1.3); bigText(c, 'KNEEL.', W / 2, 150, 130, '#ffffff', '#8a6a20'); c.globalAlpha = 1; }
+        if (t < 1.05) caption(c, 'You stand in the presence of a god.', t, .1, 1.05, '#fff6d0');
+        if (t > 2.5 && t < 4.4) caption(c, 'Be judged.', t, 2.6, 4.3, '#fff6d0');
       } else {
-        aurRays(c, W / 2, H - 120, t, 30, '#fff', 0.5);
-        for (let i = 0; i < 40; i++) { const x = W / 2 + (i - 20) * 16, h = 60 + ((i * 37) % 70); drawHolyBlade(c, x, H - 60 - h, h + 40, Math.PI / 2 + (i - 20) * 0.02, t, { glow: 0.6, w: 0.8 }); }
-        drawCharAt(c, d, W / 2, H - 170, 2.1, 1, { pose: 'intro', anim: t, transformed: true });
-        titleSlam(c, 'THRONE OF HEAVEN', `${opp.def.name} HAS BEEN JUDGED`, t, 4.8, '#ffd35a', 96);
+        if (after < .6) silhouette(c, o => drawCharAt(o, opp.def, W * .5, H - 30, oppScale, -1, { pose: 'hurt_air', anim: t, transformed: opp.transformed }), '#ffffff'); else { c.save(); c.translate(W * .5, H - 20); c.rotate(-1.4 * ease.out(seg(after, .6, 1.2))); silhouette(c, o => { o.save(); o.setTransform(1, 0, 0, 1, 0, 0); o.restore(); drawCharAt(o, opp.def, 0, 0, oppScale * .9, -1, { pose: 'hurt', anim: 0, transformed: opp.transformed }); }, '#2a1c08'); c.restore(); }
+        A(c, W * .3, H - 160 + Math.sin(t * 2) * 5, 2.4, t, 'victory', { transformed: true, wingPairs: 3 });
       }
+      if (fall > 0 && after < 0 && Math.random() < .5) fx.add({ x: rand(W * .3, W * .7), y: H - 100, vx: rand(-100, 100), vy: rand(-500, -100), life: .7, size: rand(4, 9), color: pick(['#fff', '#ffe9a0']), glow: true, g: 700 });
+      fx.draw(c);
+      flash(c, after < 0 ? white * .85 : Math.max(0, .85 - after * 1.6), '#fffbe8');
+      if (after > 0.9) titleSlam(c, 'THRONE OF HEAVEN', `${opp.def.name} HAS BEEN JUDGED`, t, 7.1, '#ffd35a', 96);
     },
   };
 }
 
-// The fall: kneeling in rubble, the halo cracks, black feathers bloom.
+// The fall: kneeling in the rubble, the halo cracks and drops, black feathers bloom.
 function csAurelionFall(f) {
-  const fx = new ParticleSystem(1600), d = f.baseDef || f.def, killer = f.opp ? f.opp.def : null;
+  const fx = new ParticleSystem(1800), d = f.baseDef || f.def, killer = f.opp ? f.opp.def : null, A = PxKit.actor(d), B = PxKit.actor(d);
   return {
-    name: 'FALLEN GOD', dur: 5.4, fx,
-    cues: [[0, () => aurSfx('tone', 220, 0.6, 'sine', 0.1, 110)], [1.2, () => aurSfx('clang')], [2.0, () => { aurSfx('boom'); aurSfx('roar'); aurSfx('screech'); }], [3.4, () => aurSfx('boom')]],
+    name: 'FALLEN GOD', dur: 6.8, fx,
+    cues: [[0, () => aurSfx('aurHeart')], [0.8, () => aurSfx('aurHeart', 0.2)], [1.3, () => aurSfx('aurShatter')], [2.2, () => { aurSfx('aurFall'); aurSfx('boom'); }], [2.9, () => aurSfx('aurChoir', 0, 2)], [3.9, () => { aurSfx('boom'); aurSfx('aurSmite'); }]],
     draw(c, t) {
-      if (t < 2.0) {
-        aurSkyGold(c, 0.15 * (1 - seg(t, 0, 2)));
-        vignette(c, 0.8);
-        drawCharAt(c, d, W / 2, H - 40, 2.8, 1, { pose: 'kneel', anim: t, transformed: true, fallen: t > 1.3 });
-        if (killer) caption(c, killer.name + '... a MORTAL...?', t, 0.2, 1.1, '#ffe08a');
-        caption(c, 'No. NO. I AM A GOD!', t, 1.2, 1.95, '#ff5a6a');
-        flashAt(c, t, 1.2, 1.35, '#ff2a3a');
-      } else if (t < 3.4) {
-        c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
-        const k = ease.out(seg(t, 2.0, 3.2));
-        for (let i = 0; i < 5; i++) fx.add({ x: W / 2 + rand(-60, 60), y: H / 2 + rand(-60, 60), vx: rand(-500, 500), vy: rand(-500, 300), life: 1.4, size: rand(5, 10), color: pick(['#12040a', '#2a0a12', '#ff2a3a']), shape: 'rect', rot: rand(0, 6), vr: rand(-6, 6) });
-        fx.draw(c);
-        c.globalCompositeOperation = 'lighter'; glowCircle(c, W / 2, H / 2 - 60, 200 * k, 'rgba(255,30,50,0.7)', 'rgba(0,0,0,0)'); c.globalCompositeOperation = 'source-over';
-        drawCharAt(c, d, W / 2, H / 2 + 190, lerp(1.8, 2.7, k), 1, { pose: 'charge', anim: t, transformed: true, fallen: true });
-        speedLines(c, t, W / 2, H / 2, 'rgba(255,40,60,0.5)');
-      } else {
-        const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0a0004'); g.addColorStop(1, '#6a0a18'); c.fillStyle = g; c.fillRect(0, 0, W, H);
-        fx.draw(c);
-        glowCircle(c, W / 2, H - 200, 420, 'rgba(255,30,50,0.35)', 'rgba(255,30,50,0)');
-        drawCharAt(c, d, W / 2, H - 20, 2.9, 1, { pose: 'victory', anim: t, transformed: true, fallen: true });
-        titleSlam(c, 'FALLEN GOD', 'IF I CANNOT BE WORSHIPPED, I WILL BE FEARED', t, 3.5, '#ff2a3a', 100);
-        flashAt(c, t, 3.4, 3.7, '#ff2a3a');
-      }
+      const dark = ease.inOut(seg(t, 1.8, 3.2)), rise = ease.out(seg(t, 2.2, 3.4)), crack = seg(t, .5, 1.5), fell = t > 2.4;
+      PxKit.scene(c, x => {
+        aurSkyPx(x, `rgb(${lerp(70, 10, dark) | 0},${lerp(50, 0, dark) | 0},${lerp(30, 4, dark) | 0})`, `rgb(${lerp(150, 110, dark) | 0},${lerp(110, 10, dark) | 0},${lerp(60, 24, dark) | 0})`);
+        aurRuins(x, `rgb(${lerp(70, 14, dark) | 0},${lerp(56, 6, dark) | 0},${lerp(44, 8, dark) | 0})`, null);
+        x.globalCompositeOperation = 'lighter'; glowCircle(x, W / 2, H - 200, 380 * dark, 'rgba(255,30,50,0.45)', 'rgba(0,0,0,0)'); x.globalCompositeOperation = 'source-over';
+        x.fillStyle = dark > .3 ? '#12040a' : '#3a2e22'; x.fillRect(0, H - 80, W, 80);
+      }, .3);
+      // black feathers falling and rising
+      if (t > 2.0) for (let i = 0; i < 4; i++) fx.add({ x: W / 2 + rand(-60, 60), y: H - 150 + rand(-60, 60), vx: rand(-500, 500), vy: rand(-600, 200), life: 1.6, size: rand(5, 10), color: pick(['#12040a', '#2a0a12', '#ff2a3a']), shape: 'rect', rot: rand(0, 6), vr: rand(-6, 6), g: 120 });
+      const sh = t > 2.1 && t < 3.6 ? rand(-6, 6) * (1 - seg(t, 2.1, 3.6)) : 0;
+      c.save(); c.translate(sh, sh * .6);
+      c.save(); c.globalAlpha = 1 - rise; A(c, W / 2, H - 70, 2.9, t, 'kneel', { transformed: true, wingPairs: 3 }); c.restore();
+      if (fell) { c.save(); c.globalAlpha = rise; B(c, W / 2, H - 70 - rise * 6, 2.9 + rise * .15, t, t < 3.9 ? 'charge' : 'victory', { transformed: true, fallen: true }); c.restore(); }
+      c.restore();
+      // the halo cracks: pixel fractures across the ring, then it falls in pieces
+      if (t < 2.3) { const hx = W / 2 + 6, hy = H - 70 - 123 * 2.9; c.save(); c.strokeStyle = '#2a1a12'; c.lineWidth = 6; c.lineCap = 'square'; for (let i = 0; i < 6; i++) { const a = i * 1.05 + .3; if (i / 6 > crack) break; c.beginPath(); c.moveTo(hx + Math.cos(a) * 44, hy + Math.sin(a) * 13); c.lineTo(hx + Math.cos(a) * 44 + Math.sin(a + i) * 14, hy + Math.sin(a) * 13 + 14); c.stroke(); } c.restore();
+        if (t > 1.3 && t < 1.4) for (let i = 0; i < 14; i++) fx.add({ x: hx + rand(-44, 44), y: hy + rand(-8, 8), vx: rand(-120, 120), vy: rand(-80, 40), life: 1.6, size: rand(5, 9), color: pick(['#ffd878', '#fff6d0']), glow: true, g: 900 }); }
+      fx.draw(c);
+      if (killer && t < 1.1) caption(c, killer.name + '... a MORTAL...?', t, .2, 1.1, '#ffe08a');
+      if (t > 1.3 && t < 2.35) caption(c, 'No. NO. I AM A GOD!', t, 1.35, 2.3, '#ff5a6a');
+      flashAt(c, t, 1.3, 1.5, '#ff2a3a'); flashAt(c, t, 3.9, 4.3, '#ff6a7a');
+      titleSlam(c, 'FALLEN GOD', 'IF I CANNOT BE WORSHIPPED, I WILL BE FEARED', t, 4.3, '#ff2a3a', 100);
     },
   };
 }
 aurelion.corruptCutscene = csAurelionFall;
 
-// Fallen ultimate: he drags the foe into a black sky; the shattered halo becomes a ring of blades.
+// DEICIDE (Fallen ultimate): he drags the foe into a black sky; the shattered halo becomes a ring of blades.
 function csAurelionDeicide(a, opp) {
-  const fx = new ParticleSystem(2600), d = a.baseDef || a.def, city = makeCineCity(16, 120, 320), baseY = H - 30;
-  const oppScale = opp.transformed && opp.def.id === 'eric' ? 0.55 : 1.2;
+  const fx = new ParticleSystem(2600), d = a.baseDef || a.def, A = PxKit.actor(d), city = makeCineCity(16, 120, 320), baseY = H - 30, oppScale = opp.transformed && opp.def.id === 'eric' ? 0.55 : 1.5;
   return {
-    name: 'DEICIDE', dur: 6.6, fx,
-    cues: [[0, () => aurSfx('screech')], [1.0, () => aurSfx('whoosh')], [2.4, () => aurSfx('clang')], [3.6, () => { aurSfx('boom'); aurSfx('slam'); }], [4.2, () => aurSfx('boom')]],
+    name: 'DEICIDE', dur: 7.8, fx,
+    cues: [[0, () => aurSfx('aurFall')], [1.2, () => aurSfx('aurChoir', 0, 2)], [2.6, () => aurSfx('aurShatter')], [3.6, () => aurSfx('aurSmite')], [4.3, () => { aurSfx('boom'); aurSfx('aurFall'); }], [4.6, () => aurSfx('aurSmite', 0.1)], [5.6, () => aurSfx('aurHeart')]],
     draw(c, t) {
-      const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#040002'); g.addColorStop(1, '#4a0610'); c.fillStyle = g; c.fillRect(0, 0, W, H);
-      if (t < 2.4) {
-        const up = ease.out(seg(t, 0.6, 2.2));
-        drawCineCity(c, city, baseY + up * 500, '#12040a', false);
-        drawCharAt(c, d, W * 0.42, H * 0.62 - up * 120, 2.2, 1, { pose: 'fly', anim: t, transformed: true, fallen: true });
-        silhouette(c, o => drawCharAt(o, opp.def, W * 0.58, H * 0.66 - up * 110, oppScale, -1, { pose: 'hurt_air', anim: t, transformed: opp.transformed }), '#1a0206');
-        caption(c, 'If I fall... you fall with me.', t, 0.1, 1.2, '#ff8a9a');
-      } else if (t < 3.6) {
-        const k = ease.out(seg(t, 2.4, 3.2));
-        silhouette(c, o => drawCharAt(o, opp.def, W / 2, H / 2 + 90, oppScale * 1.2, -1, { pose: 'hurt_air', anim: t, transformed: opp.transformed }), '#1a0206');
-        for (let i = 0; i < 16; i++) { const an = i * Math.PI / 8 + t * 0.8, R = lerp(520, 170, k); drawHolyBlade(c, W / 2 + Math.cos(an) * R, H / 2 + Math.sin(an) * R * 0.7, 120, an + Math.PI, t, { fallen: true, glow: k }); }
-        bigText(c, 'DEICIDE', W / 2, 90, 90 * k + 1, '#ff2a3a', '#000');
-      } else if (t < 4.6) {
-        const k = seg(t, 3.6, 4.4);
-        drawCineCity(c, city.map(b => Object.assign({}, b, { dead: true })), baseY, '#12040a', false);
-        c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(255,40,60,1)'; c.lineWidth = 30 * (1 - k) + 4;
-        c.beginPath(); c.moveTo(W / 2, -20); c.lineTo(W / 2 + 20, baseY); c.stroke(); glowCircle(c, W / 2, baseY, 600 * k, 'rgba(255,30,50,0.5)', 'rgba(0,0,0,0)'); c.globalCompositeOperation = 'source-over';
-        if (t < 3.8) for (let i = 0; i < 10; i++) fx.add({ x: W / 2 + rand(-40, 40), y: baseY, vx: rand(-900, 900), vy: rand(-900, -200), life: 1, size: rand(8, 18), color: pick(['#ff2a3a', '#2a0008', '#888']), glow: true, g: 1200 });
-        fx.draw(c);
-        flashAt(c, t, 3.6, 3.95, '#ffd0d8');
+      const up = ease.out(seg(t, .6, 2.4)), ring = ease.inOut(seg(t, 2.4, 3.6)), drop = ease.in(seg(t, 3.7, 4.4)), after = t - 4.4;
+      PxKit.scene(c, x => {
+        aurSkyPx(x, '#040002', '#4a0610'); x.globalCompositeOperation = 'lighter'; for (let i = 0; i < 50; i++) { x.fillStyle = 'rgba(255,60,80,0.6)'; x.fillRect((i * 83) % W, (i * 47 + t * 20) % (H * .7), 4, 4); } x.globalCompositeOperation = 'source-over';
+        if (t < 4.4) drawCineCity(x, city, baseY + up * 520 + drop * -520, '#12040a', false);
+        else { drawCineCity(x, city.map(b => Object.assign({}, b, { dead: true })), baseY, '#0a0205', false); x.globalCompositeOperation = 'lighter'; glowCircle(x, W / 2, baseY, 700 * ease.out(seg(after, 0, .8)), `rgba(255,30,50,${.6 * (1 - seg(after, .8, 2.4))})`, 'rgba(0,0,0,0)'); x.strokeStyle = `rgba(255,40,60,${1 - seg(after, 0, .5)})`; x.lineWidth = 30 * (1 - seg(after, 0, .5)) + 4; x.beginPath(); x.moveTo(W / 2, -20); x.lineTo(W / 2 + 20, baseY); x.stroke(); x.globalCompositeOperation = 'source-over'; }
+        if (t > 2.4 && t < 4.4) for (let i = 0; i < 16; i++) { const an = i * Math.PI / 8 + t * .8, R = lerp(520, 150 + drop * 150, ring); drawHolyBlade(x, W / 2 + Math.cos(an) * R, H * .46 + Math.sin(an) * R * .7, 120, an + Math.PI, t, { fallen: true, glow: ring }); }
+      }, .3);
+      if (t < 4.4) {
+        const fy = lerp(H * .62, H * .46, ring) + drop * 220 - up * 130 * (1 - ring);
+        A(c, lerp(W * .4, W * .43, ring), fy + (t < 2.4 ? 0 : 110), 2.3, t, t < 2.4 ? 'fly' : 'victory', { transformed: true, fallen: true });
+        silhouette(c, o => drawCharAt(o, opp.def, lerp(W * .6, W / 2, ring), lerp(H * .66, H * .5, ring) + drop * 220 - up * 110 * (1 - ring) + 80, oppScale, -1, { pose: 'hurt_air', anim: t, transformed: opp.transformed }), '#1a0206');
+        if (t < 1.4) caption(c, 'If I fall... you fall with me.', t, .1, 1.35, '#ff8a9a');
+        if (t > 2.6) { c.globalAlpha = Math.min(1, ring); bigText(c, 'DEICIDE', W / 2, 90, 90 * ring + 1, '#ff2a3a', '#000'); c.globalAlpha = 1; }
       } else {
-        drawCineCity(c, city.map(b => Object.assign({}, b, { dead: true })), baseY, '#0a0205', false);
-        fx.draw(c);
-        silhouette(c, o => { o.save(); o.translate(W * 0.7, baseY - 12); o.rotate(-1.45); drawCharAt(o, opp.def, 0, 0, oppScale * 0.9, -1, { pose: 'hurt', anim: 0, transformed: opp.transformed }); o.restore(); }, '#050001');
-        glowCircle(c, W * 0.4, baseY - 200, 380, 'rgba(255,20,40,0.3)', 'rgba(0,0,0,0)');
-        drawCharAt(c, d, W * 0.4, baseY - 6, 2.5, 1, { pose: 'intro', anim: t, transformed: true, fallen: true });
-        titleSlam(c, 'DEICIDE', 'NOW WE ARE BOTH FALLEN', t, 4.8, '#ff2a3a', 110);
+        if (after < .06) for (let i = 0; i < 16; i++) fx.add({ x: W / 2 + rand(-40, 40), y: baseY, vx: rand(-900, 900), vy: rand(-900, -200), life: 1, size: rand(8, 18), color: pick(['#ff2a3a', '#2a0008', '#888']), glow: true, g: 1200 });
+        silhouette(c, o => { o.save(); o.translate(W * .7, baseY - 12); o.rotate(-1.45); drawCharAt(o, opp.def, 0, 0, oppScale * .9, -1, { pose: 'hurt', anim: 0, transformed: opp.transformed }); o.restore(); }, '#050001');
+        c.save(); c.globalCompositeOperation = 'lighter'; glowCircle(c, W * .4, baseY - 200, 380, 'rgba(255,20,40,0.3)', 'rgba(0,0,0,0)'); c.restore();
+        A(c, W * .4, baseY - 6, 2.6, t, 'intro', { transformed: true, fallen: true });
+        if (after > 1) titleSlam(c, 'DEICIDE', 'NOW WE ARE BOTH FALLEN', t, 5.5, '#ff2a3a', 110);
       }
+      fx.draw(c);
+      flashAt(c, t, 4.3, 4.7, '#ffd0d8');
     },
   };
 }

@@ -161,7 +161,7 @@ function settingsMenu() {
     tog('dmgNums', 'DAMAGE NUMBERS', 'Floating damage numbers.'),
     tog('hints', 'CONTROL HINTS', 'Show control hints at the start of fights.'),
     tog('hitboxes', 'SHOW HITBOXES', 'Draw hurtboxes (green) and hitboxes (red) everywhere.'),
-    { label: () => `PIXEL ART FIGHTERS: ${S.pixelArt === false ? 'OFF' : 'ON'}`, desc: 'Draw Aatrox, Kael, Seraph, Sion, Razor and Volibear as pixel art. OFF uses their original art.', act() { S.pixelArt = S.pixelArt === false; for (const k in PortraitCache) delete PortraitCache[k]; sv(); }, left() { this.act(); }, right() { this.act(); } },
+    { label: () => `PIXEL ART FIGHTERS: ${S.pixelArt === false ? 'OFF' : 'ON'}`, desc: 'Draw Aatrox, Kael, Seraph, Sion, Razor, Volibear, Aurelion, Oracle, Shinji, Gojo and Mordekaiser as pixel art. OFF uses their original art.', act() { S.pixelArt = S.pixelArt === false; for (const k in PortraitCache) delete PortraitCache[k]; sv(); }, left() { this.act(); }, right() { this.act(); } },
     { label: 'RESET SAVE DATA', desc: 'Erase records, achievements and settings.', act: () => { if (this && false) return; Save.data = Save.defaults(); Save.save(); Sfx.applyVolumes(); Game.announce('SAVE DATA RESET', '#ff5a5a', 80); } },
   ]);
 }
