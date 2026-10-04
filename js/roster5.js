@@ -649,3 +649,50 @@ rival('aurelion', 'judge', [[1, 'Aurelion. Charge: impersonating a deity.'], [0,
   { aurelion: 'Case dismissed. By God.', judge: 'Guilty. Sentence: humility. Two thousand hours.' });
 rival('aurelion', 'vex', [[1, 'You want to be worshipped. I want everything to end. We could reach an arrangement.'], [0, 'Gods do not make arrangements with rounding errors.']],
   { aurelion: 'Even the void kneels.', vex: 'Gods, stars, cities. All temporary.' });
+
+// ============================================================
+//  SERAPHIM ASCENDANT: Seraphic Charge and the TRIBUNAL OF THE SEVEN TRUMPETS.
+// ============================================================
+const AUR_F_CHARGE = Object.assign(Mv.rush({ name: 'Seraphic Charge', desc: 'Ascended: he crosses the stage on his wings, passing through the foe and branding 2 Sins.', s: 8, speed: 1700, frames: 14, pass: true, hit: { dmg: 76, kb: [380, -420], launch: true } }), { swing: [-0.2, -0.9, 0.05], onHit: aurSinOnHit(2), ev: { 1: () => aurSfx('aurFall') } });
+const AUR_F_ULT = superize(mk({ name: 'TRIBUNAL OF THE SEVEN TRUMPETS', desc: 'Ascended: seven trumpets sound and seven pillars of judgment march across the stage toward the foe. The seventh is a colossal sword that tracks them. Blockable. Must connect.', pose: 'cast_up', s: 48, a: 4, r: 26, swing: [-1.57, -1.57, -1.57],
+  ev: { 1: f => { aurSfx('aurChoir', 0, 2.2); const t = f.opp; f.ultTele = Combat.telegraph(f, { x: t ? t.x : f.x, follow: t, track: .16, r: 110, life: 999, color: '#ffe08a', column: true });
+      for (let i = 0; i < 6; i++) { const x = clamp(f.x + f.facing * (130 + i * 150), 40, Arena.stage.width - 40); Combat.telegraph(f, { x, r: 58, life: 10 + i * 6, color: '#fff0b0', column: true, onFire: h => { for (const o of Combat.targets(f.side)) if (Math.abs(o.x - h.x) < h.r) { const r = Combat.resolveHit(o, f, H_({ dmg: 38, guard: 'mid', hs: 18, kb: [0, -300], launch: true, sfx: 'h' }), { proj: true, fromX: h.x, move: AUR_F_ULT }); if (r === 'hit') aurSin(f, o, 1); } Combat.addHazard({ kind: 'aurPillar', owner: f, side: f.side, x: h.x, r: h.r, life: 16, color: '#fff6d0', sword: true }); aurSfx('aurBellToll'); } }); } },
+    48: f => { const x = f.ultTele ? f.ultTele.x : f.x; if (f.ultTele) f.ultTele.life = 0; f.ultTele = null;
+      for (const o of Combat.targets(f.side)) if (Math.abs(o.x - x) < 120) Combat.resolveHit(o, f, H_({ dmg: 10, hs: 60, kb: [0, 0], ultConnect: true, guard: 'mid' }), { proj: true, fromX: x, move: AUR_F_ULT });
+      Combat.addHazard({ kind: 'aurPillar', owner: f, side: f.side, x, r: 120, life: 34, color: '#fff6d0', sword: true, giant: true }); Cam.shake = 22; aurSfx('aurSmite'); aurSfx('boom'); } } }), 300);
+AUR_F_ULT.id = 'aurelion_fult'; AUR_F_ULT.recoverWhiff = 30;
+AUR_F_ULT.ult = { dmg: 1240, cutscene: (a, t) => csAurelionTrumpets(a, t), fx: { el: 'light', color: '#ffe08a', sky: ['#2a2010', '#9a7a3a', '#fff0c0'] } };
+Object.assign(aurelion.form, { ult: AUR_F_ULT });
+aurelion.form.moves['6S'] = AUR_F_CHARGE; AUR_F_CHARGE.id = 'aurelion_f6S'; AUR_F_CHARGE.slot = '6S'; AUR_F_CHARGE.owner = 'aurelion';
+aurelion.form.desc += ' Also gains Seraphic Charge and the ultimate TRIBUNAL OF THE SEVEN TRUMPETS.';
+
+// TRIBUNAL OF THE SEVEN TRUMPETS — seven seraphs raise seven horns; the sky breaks seven times; the seventh break is a sword.
+function csAurelionTrumpets(a, opp) {
+  const fx = new ParticleSystem(2600), A = PxKit.actor(a.def), oppScale = opp.transformed && opp.def.id === 'eric' ? 0.55 : 1.55;
+  return {
+    name: 'TRIBUNAL OF THE SEVEN TRUMPETS', dur: 9.0, fx,
+    cues: [[0, () => aurSfx('aurBellToll')], [1.2, () => aurSfx('aurBlessing')], [2.0, () => aurSfx('aurBlessing')], [2.8, () => aurSfx('aurBlessing')], [3.6, () => aurSfx('aurBlessing')], [4.4, () => aurSfx('aurBlessing')], [5.2, () => aurSfx('aurBlessing')], [6.0, () => aurSfx('aurChoir', 0, 2)], [6.6, () => { aurSfx('aurSmite'); aurSfx('aurShatter'); aurSfx('boom'); }]],
+    draw(c, t) {
+      const horns = Math.min(7, Math.max(0, Math.floor((t - 1.0) / .8))), fall = seg(t, 6.0, 6.7), after = t - 6.7, gy = H - 80;
+      PxKit.scene(c, x => {
+        aurSkyPx(x, `rgb(${lerp(30, 255, Math.min(1, horns / 7)) | 0},${lerp(24, 226, Math.min(1, horns / 7)) | 0},${lerp(20, 150, Math.min(1, horns / 7)) | 0})`, '#e8c870');
+        aurRaysPx(x, W / 2, 80, t, 7, '#fff8d8', .22 + .3 * horns / 7);
+        // seven rifts in the sky, one per trumpet
+        x.save(); x.globalCompositeOperation = 'lighter'; for (let i = 0; i < horns; i++) { const rx = W * (.1 + i * .13), k = ease.out(Math.min(1, (t - 1.0 - i * .8) / .6)); x.fillStyle = 'rgba(255,255,236,0.9)'; x.fillRect(rx - 12 * k, 0, 24 * k, H * .5 * k); aurRaysPx(x, rx, 0, t + i, 6, '#fff4c8', .2); } x.restore();
+        aurCloudsPx(x, t * .6, H - 100, 'rgba(255,250,235,0.95)', 10);
+        if (fall > 0) { drawHolyBlade(x, W * .7, lerp(-300, gy - 20, fall * fall), 600, Math.PI / 2, t, { glow: 1, w: 3.4 }); }
+        if (after > 0) { x.fillStyle = `rgba(255,255,240,${Math.max(0, 1 - after * 1.2)})`; x.fillRect(0, 0, W, H); aurRaysPx(x, W * .7, gy, t, 30, '#fff', .5); }
+        x.fillStyle = '#e8d8a8'; x.fillRect(0, gy, W, H - gy);
+      }, .3);
+      // seven seraphs, each lifting a horn as its rift opens
+      for (let i = 0; i < 7; i++) { const sx = W * (.1 + i * .13), k = ease.out(Math.min(1, Math.max(0, (t - 1.0 - i * .8) / .6))); if (k <= 0) continue; c.save(); c.globalAlpha = k * (after > 0.4 ? 0 : 1); c.translate(sx, 120 + 40 * (1 - k)); c.fillStyle = '#fffbee'; c.fillRect(-10, 0, 20, 52); c.fillStyle = '#e0b448'; c.fillRect(-10, 22, 20, 5); c.fillRect(-4, -14, 8, 14); c.beginPath(); c.moveTo(6, 6); c.lineTo(52, -14); c.lineTo(52, 14); c.closePath(); c.fill(); c.fillStyle = '#fff'; for (let j = 0; j < 5; j++) c.fillRect(-26 - j * 6, 10 + j * 5, 24, 4); c.restore(); }
+      if (after < 0.1) silhouette(c, o => drawCharAt(o, opp.def, W * .7, gy + 4, oppScale, -1, { pose: 'kneel', anim: t, transformed: opp.transformed }), '#6a5420');
+      else silhouette(c, o => drawCharAt(o, opp.def, W * .7, gy + 4, oppScale, -1, { pose: 'hurt', anim: t, transformed: opp.transformed }), '#3a2a08');
+      A(c, W * .3, gy - 20 - ease.out(Math.min(1, t / 1.2)) * 30, 2.6, t, t < 6 ? 'intro' : 'victory', { transformed: true, wingPairs: 3 });
+      fx.draw(c);
+      if (horns < 3) caption(c, 'The first trumpet is a warning.', t, .4, 2.6, '#fff6d0'); else if (t < 6) caption(c, 'The seventh is a sentence.', t, 3.6, 5.8, '#fff6d0');
+      flashAt(c, t, 6.6, 7.2, '#fffbe8');
+      if (t > 7.4) titleSlam(c, 'TRIBUNAL OF THE SEVEN TRUMPETS', `${opp.def.name} HAS BEEN SENTENCED`, t, 7.5, '#ffd35a', 62);
+    },
+  };
+}

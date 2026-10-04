@@ -380,3 +380,67 @@ rival('mordekaiser', 'sion', [[1, 'Sion. I raised you once, in another life.'], 
   { mordekaiser: 'Kneel, soldier.', sion: 'Keep your realm, iron king.' });
 rival('mordekaiser', 'aatrox', [[0, 'A Darkin. Your soul would make a fine general.'], [1, 'You collect the dead. I make them.']],
   { mordekaiser: 'Your prison is now mine.', aatrox: 'Death has no dominion over me.' });
+
+// ============================================================
+//  LORD OF THE DEATH REALM: a second moveset, THRONE OF THE DEAD, and a rare return from the Realm.
+// ============================================================
+const MK_F_OBLIT = mk({ name: 'Nightfall: Dominion', desc: 'Lord form: the mace comes down across the whole lane. The head still hits hardest, and the ground splits behind it.', pose: 'slam', s: 14, a: 6, r: 20, ai: { min: 60, max: 320, use: 'combo' },
+  hit: { dmg: 104, box: [10, -170, 290, 170], kb: [520, -340], hs: 24, sfx: 'h' }, ev: { 3: () => mkSfx('morSlam') },
+  onHit: (a, t) => { const d = Math.abs(t.x - a.x); if (d > 170 * a.scale && t.hp > 1) { t.hp = Math.max(1, t.hp - 50); Game.popWorld(t.x, t.y - t.h - 30, 'DOMINION', '#6aff9a', 22); } mkSfx('morClang'); Combat.addHazard({ kind: 'mkCrack', owner: a, side: a.side, x: t.x, life: 30 }); Combat.addHazard({ kind: 'mkShock', owner: a, side: a.side, x: t.x, life: 22 }); } });
+const MK_F_CHAINS = mk({ name: 'Chains of the Dead', desc: 'Lord form: spectral chains lash the foe from both sides of the screen and haul them to him, slowing them.', pose: 'cast', s: 14, a: 8, r: 22, ai: { min: 200, max: 700, use: 'zone' },
+  hit: { dmg: 56, box: [150, -150, 330, 150], kb: [0, 0], hs: 22, sfx: 'm' },
+  onHit: (a, t) => { t.x = clamp(a.x + a.facing * 100, 40, Arena.stage.width - 40); t.vx = 0; t.status.slow = Math.max(t.status.slow || 0, 2.5); Game.fx.burst(t.x, t.y - 70, 20, { color: ['#6aff9a', '#0a1210', '#aab'], size: 8, speed: 320, life: 0.45 }); mkSfx('morChain'); },
+  ev: { 3: () => mkSfx('morSoul'), 14: f => Combat.addHazard({ kind: 'mkChains', owner: f, side: f.side, x: f.x + f.facing * 260 * f.scale, r: 300, life: 34 }) } });
+const MK_F_ARMOR = mk({ name: 'Realm Armor', desc: 'Lord form: spends the INDESTRUCTIBLE gauge as a thicker shield (5s), and cuts the foe with every blow that lands on it.', pose: 'charge', s: 10, a: 1, r: 14, ai: { min: 0, max: 1500, use: 'buff' },
+  ev: { 10: f => { const g = f.gauge || 0; if (g < 10) { Game.popWorld(f.x, f.y - f.h - 30, 'NOT ENOUGH IRON', '#aab', 16); return; } f.status.shield = Math.round(g * 5); f.status.shieldT = 5; f.gauge = 0; Game.popWorld(f.x, f.y - f.h - 30, 'REALM ARMOR', '#6aff9a', 22); mkSfx('morClang'); mkSfx('morHeal'); } } });
+const MK_F_ULT = superize(mk({ name: 'THRONE OF THE DEAD', desc: 'Lord form: the legion of the Death Realm charges across the stage. Anyone it catches is dragged to the throne and taken for a soldier. Blockable. Must connect.', pose: 'cast_up', s: 46, a: 4, r: 30,
+  ev: { 2: f => { f.say('Rise. Your king is hungry.', 100); mkSfx('morToll'); mkSfx('riser', 1.6, 0.22, 0, 70, 700); },
+    46: f => { Combat.strikeZone(f, { x: f.facing > 0 ? f.x : f.x - 900, y: -320, w: 900, h: 324 }, { dmg: 10, hs: 60, kb: [0, 0], ultConnect: true, guard: 'mid' }, { move: MK_F_ULT });
+      Combat.addHazard({ kind: 'mkLegion', owner: f, side: f.side, x: f.x, dir: f.facing, life: 60 }); Cam.shake = 16; mkSfx('morRealm'); } } }), 300);
+MK_F_ULT.id = 'mordekaiser_fult'; MK_F_ULT.recoverWhiff = 36;
+MK_F_ULT.ult = { dmg: 1280, cutscene: (a, t) => csMordekaiserThrone(a, t), fx: { el: 'void', color: '#6aff9a' }, after: a => { a.mkStolen = true; a.hp = Math.min(a.maxHp, a.hp + a.maxHp * 0.12); Game.popWorld(a.x, a.y - a.h - 40, 'SOLDIER CLAIMED +12% HP', '#6aff9a', 22); mkSfx('morHeal'); } };
+Object.assign(mordekaiser.form, { moves: { '5S': MK_F_OBLIT, '6S': MK_F_CHAINS, '2S': MK_F_ARMOR }, ult: MK_F_ULT, desc: 'Permanent. Darkness Rise never sleeps, iron banks twice as fast, armor thickens. New moveset (Dominion, Chains of the Dead, Realm Armor), the ultimate THRONE OF THE DEAD, and once a round he is dragged back out of the Realm instead of falling.' });
+for (const [slot, m] of Object.entries(mordekaiser.form.moves)) { m.id = 'mordekaiser_f' + slot; m.slot = slot; m.owner = 'mordekaiser'; }
+mordekaiser.revival = { needForm: true, hp: 0.3, meter: 250, label: 'RETURNED FROM THE REALM', say: ['Death has no hold on a king.', 'I was only visiting.'],
+  cutscene: f => PxKit.reviveCs(f, { name: 'RETURNED FROM THE REALM', title: 'DEATH IS A DOOR', sub: 'HE HOLDS THE KEY', caption: 'I have died twice. I am not finished.', c1: '#6aff9a', c2: '#e8fff0', c3: '#0a3a22', motif: 'shards', wasForm: true, sfx: n => n === 'open' ? mkSfx('morToll') : n === 'gather' ? mkSfx('morSoul') : (mkSfx('morAscend'), mkSfx('morRealm')), bg: (x, t, k) => mkRealmBg(x, t, .4 + k * .6, true) }) };
+
+// the legion: a wave of pixel spirits sweeping out from the Lord
+Combat.hz.mkLegion = h => h.t < h.life;
+Combat.drawHz.mkLegion = (c, h) => {
+  const k = h.t / h.life, front = h.x + h.dir * 1100 * ease.out(k); c.save(); c.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 46; i++) { const lane = i % 5, back = (i * 53 % 260), x = front - h.dir * back, y = -12 - lane * 34 - Math.abs(Math.sin(h.t * .4 + i)) * 10; if ((x - h.x) * h.dir < 0) continue; const a = (1 - k) * (1 - back / 320); c.fillStyle = i % 3 ? `rgba(106,255,154,${a})` : `rgba(235,255,245,${a})`; c.fillRect(Math.round(x / 4) * 4, Math.round(y / 4) * 4, 14, 22); c.fillRect(Math.round(x / 4) * 4 + 3, Math.round(y / 4) * 4 - 8, 8, 8); }
+  glowCircle(c, front, -60, 160, `rgba(90,255,150,${.35 * (1 - k)})`, 'rgba(0,0,0,0)'); c.restore();
+};
+
+// THRONE OF THE DEAD — the legion marches over the foe, drags them up the steps, and sets them in the ranks.
+function csMordekaiserThrone(a, opp) {
+  const fx = new ParticleSystem(1600), A = PxKit.actor(a.def), oppScale = opp.transformed && opp.def.id === 'eric' ? 0.55 : 1.7;
+  return {
+    name: 'THRONE OF THE DEAD', dur: 8.4, fx,
+    cues: [[0, () => mkSfx('morToll')], [1.4, () => mkSfx('morDeathChoir', 0, 3.2)], [2.4, () => mkSfx('morRealm')], [3.4, () => mkSfx('morChain')], [4.6, () => mkSfx('morSlam')], [5.6, () => mkSfx('morSoul')], [6.4, () => { mkSfx('morAscend'); }]],
+    draw(c, t) {
+      const march = seg(t, 1.6, 4.4), drag = ease.inOut(seg(t, 4.4, 5.8)), stone = seg(t, 5.8, 6.8), gy = H - 78;
+      PxKit.scene(c, x => {
+        mkRealmBg(x, t, 1, true);
+        // the throne, up close, on the right; steps climbing to it
+        x.fillStyle = '#0b2018'; for (let i = 0; i < 5; i++) x.fillRect(W * .62 + i * 56, gy - 24 - i * 22, W, 24 + i * 22);
+        x.fillStyle = '#061410'; x.fillRect(W * .86, gy - 330, 150, 260); for (let i = 0; i < 4; i++) { x.beginPath(); x.moveTo(W * .86 + i * 40, gy - 330); x.lineTo(W * .86 + 20 + i * 40, gy - 400); x.lineTo(W * .86 + 40 + i * 40, gy - 330); x.fill(); }
+      }, .3);
+      // the legion: ranks of green-eyed soldiers marching left to right
+      c.save(); c.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 70; i++) { const lane = i % 6, x = lerp(-200 - (i * 37 % 300), W * .7 - lane * 22 + (i * 11 % 80), march) + (i % 7) * 12, y = gy - lane * 26 - Math.abs(Math.sin(t * 7 + i)) * 8; c.fillStyle = i % 4 ? 'rgba(90,255,150,0.75)' : 'rgba(235,255,245,0.85)'; c.fillRect(Math.round(x / 4) * 4, Math.round(y / 4) * 4 - 40, 16, 40); c.fillRect(Math.round(x / 4) * 4 + 4, Math.round(y / 4) * 4 - 52, 8, 10); c.fillRect(Math.round(x / 4) * 4 + 14, Math.round(y / 4) * 4 - 34, 14, 3); }
+      c.restore();
+      // the foe: caught, dragged up the steps, turned to green stone
+      const fxp = lerp(W * .46, W * .74, drag), fyp = lerp(gy, gy - 100, drag);
+      if (t < 5.8 + 1.0) { c.save(); c.globalAlpha = 1 - stone * .0; silhouette(c, o => drawCharAt(o, opp.def, fxp, fyp + 4, oppScale, -1, { pose: drag > 0 ? 'hurt_air' : 'block', anim: t, transformed: opp.transformed }), stone > 0 ? '#2a6a4a' : '#12402a'); c.restore(); }
+      if (t > 3.2 && t < 5.9) { c.save(); c.strokeStyle = '#7a9088'; c.lineWidth = 5; c.setLineDash([9, 5]); for (const [sx, sy] of [[0, 60], [W, 80], [W * .6, 0]]) { c.beginPath(); c.moveTo(sx, sy); c.lineTo(fxp, fyp - 110); c.stroke(); } c.restore(); }
+      A(c, W * .88, gy - 88, 2.4, t, t < 4.4 ? 'intro' : 'victory', { transformed: true, mkStorm: 1 });
+      fx.draw(c);
+      if (stone > 0) { c.save(); c.globalCompositeOperation = 'lighter'; glowCircle(c, fxp, fyp - 100, 120 * stone, 'rgba(110,255,160,0.7)', 'rgba(0,0,0,0)'); c.restore(); }
+      caption(c, 'Rise. Your king is hungry.', t, .3, 2.4, '#b0ffd0');
+      if (t > 5.9 && t < 7.2) caption(c, 'Another soldier.', t, 6.0, 7.1, '#b0ffd0');
+      flashAt(c, t, 4.5, 4.8, '#cfffe0'); flashAt(c, t, 6.4, 6.9, '#ffffff');
+      if (t > 7.0) titleSlam(c, 'THRONE OF THE DEAD', 'ANOTHER SOLDIER', t, 7.1, '#6aff9a', 90);
+    },
+  };
+}

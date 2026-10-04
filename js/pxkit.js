@@ -65,3 +65,48 @@ const PxKit = (() => {
   const px = (c, x, y, s, col) => { c.fillStyle = col; c.fillRect(Math.round(x / s) * s, Math.round(y / s) * s, s, s); };
   return { posterize, portrait, scene, actor, on, px, mk };
 })();
+
+// ---------------------------------------------------------------------------------------------
+//  Revival cinematic builder.  PxKit.reviveCs(f, o) -> cutscene
+//   o: { name, title, sub, caption, c1, c2, c3 (palette), motif: 'embers'|'rings'|'rays'|'shards'|'leaves'|'bolts'|'notes',
+//        bg(x,t,k,burst) optional low-res backdrop painter, cues: [[t,fn]...], sfx(name) hook, wasForm, extra: view props }
+//  The body lies broken, the motif gathers into it, it flashes, and rises transformed.
+// ---------------------------------------------------------------------------------------------
+PxKit.clamp01 = v => Math.max(0, Math.min(1, v));
+PxKit.reviveCs = function (f, o) {
+  const fx = new ParticleSystem(1600), A = PxKit.actor(f.def), c1 = o.c1 || '#ffd35a', c2 = o.c2 || '#ffffff', c3 = o.c3 || '#802000', cx = W / 2, gy = H - 60, S = 3.0;
+  const spawn = () => {
+    const n = o.motif === 'bolts' ? 2 : 4;
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * 6.283, R = 380 + Math.random() * 260, x = cx + Math.cos(a) * R * 1.4, y = gy - 150 + Math.sin(a) * R * .8, life = .7 + Math.random() * .5, col = [c1, c2, c1, c3][i & 3];
+      const base = { x, y, vx: (cx - x) / life, vy: (gy - 150 - y) / life, life, color: col, glow: true };
+      if (o.motif === 'leaves') fx.add(Object.assign(base, { size: 8, shape: 'rect', rot: Math.random() * 6, vr: 8, vy: base.vy + Math.sin(a) * 120 }));
+      else if (o.motif === 'shards') fx.add(Object.assign(base, { size: 7 + Math.random() * 5, shape: 'rect', rot: a, vr: 5 }));
+      else fx.add(Object.assign(base, { size: 3 + Math.random() * 6 }));
+    }
+  };
+  return {
+    name: o.name || 'REVIVAL', dur: 5.6, fx,
+    cues: o.cues || [[0, () => o.sfx && o.sfx('open')], [1.3, () => o.sfx && o.sfx('gather')], [3.0, () => o.sfx && o.sfx('burst')]],
+    draw(c, t) {
+      const k = PxKit.clamp01((t - 1.0) / 2.0), burst = t - 3.0, flare = PxKit.clamp01(burst / 0.5), up = PxKit.clamp01(burst / 1.0);
+      PxKit.scene(c, x => {
+        if (o.bg) o.bg(x, t, k, burst); else { const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#05030a'); g.addColorStop(1, o.floor || '#1a1020'); x.fillStyle = g; x.fillRect(0, 0, W, H); }
+        x.globalCompositeOperation = 'lighter'; glowCircle(x, cx, gy - 150, 80 + 380 * k + (burst > 0 ? 400 * flare : 0), hexA(o.glow || c1, .18 + .4 * k), 'rgba(0,0,0,0)'); x.globalCompositeOperation = 'source-over';
+        x.fillStyle = 'rgba(0,0,0,0.5)'; x.fillRect(0, gy + 8, W, H - gy);
+        if (o.motif === 'rays' && k > 0) { x.globalCompositeOperation = 'lighter'; x.fillStyle = hexA(c2, .12 + .2 * k); for (let i = 0; i < 18; i++) { const a = i * .349 + t * .2; x.beginPath(); x.moveTo(cx, gy - 150); x.lineTo(cx + Math.cos(a - .05) * 1500, gy - 150 + Math.sin(a - .05) * 1500); x.lineTo(cx + Math.cos(a + .05) * 1500, gy - 150 + Math.sin(a + .05) * 1500); x.fill(); } x.globalCompositeOperation = 'source-over'; }
+      }, .3);
+      if (t > 1.0 && t < 3.0) spawn();
+      fx.draw(c);
+      if (o.motif === 'bolts' && t > 1.2 && t < 3.0) { c.save(); c.globalCompositeOperation = 'lighter'; for (let i = 0; i < 3; i++) { const sd = Math.floor(t * 14) + i * 5, ax = cx + Math.sin(sd * 3.1) * 520; c.strokeStyle = i ? c1 : c2; c.lineWidth = 5 - i; c.beginPath(); c.moveTo(ax, 0); for (let j = 1; j <= 8; j++) c.lineTo(lerp(ax, cx, j / 8) + Math.sin(sd + j * 7) * 40 * (1 - j / 8), (gy - 150) * j / 8); c.stroke(); } c.restore(); }
+      const shake = burst > 0 && burst < .6 ? (1 - burst / .6) * 10 : 0; c.save(); if (shake) c.translate(rand(-shake, shake), rand(-shake, shake));
+      const rise = burst > 0 ? up : 0;
+      A(c, cx, gy + 4 - rise * 6, S + rise * .25, t, burst < 0 ? (t < 1.0 ? 'hurt' : 'kneel') : burst < .9 ? 'charge' : 'victory', Object.assign({ transformed: burst > 0 ? true : !!o.wasForm }, o.extra || {}));
+      c.restore();
+      if (burst > 0 && burst < 1) { c.save(); c.globalCompositeOperation = 'lighter'; const R = 900 * ease.out(burst); for (let i = 0; i < 44; i++) { const a = i / 44 * 6.283; c.fillStyle = i % 2 ? hexA(c1, 1 - burst) : hexA(c2, 1 - burst); c.fillRect(Math.round((cx + Math.cos(a) * R) / 4) * 4, Math.round((gy - 120 + Math.sin(a) * R * .35) / 4) * 4, 12, 12); } c.restore(); }
+      if (o.caption) caption(c, o.caption, t, .3, 2.8, o.capColor || c2);
+      flashAt(c, t, 3.0, 3.5, c2);
+      titleSlam(c, o.title || 'REVIVED', o.sub || '', t, 3.9, c1, o.size || 104);
+    },
+  };
+};

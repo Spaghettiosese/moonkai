@@ -403,3 +403,75 @@ rival('gojo', 'yuji', [[0, 'Yuji! Show me what you learned.'], [1, "Sensei, plea
   { gojo: 'Good job! You lasted a whole round.', yuji: 'I... actually hit him?!' });
 rival('gojo', 'dio', [[1, 'A man who cannot be touched? DIO will stop your time.'], [0, "Cool. I'll still be the strongest in stopped time."]],
   { gojo: "Nah, I'd win. And I did.", dio: 'Even infinity must kneel to DIO.' });
+
+// ============================================================
+//  SIX EYES: a second moveset and a second ultimate.
+// ============================================================
+// Red, at maximum output: the orb detonates a second time where it lands, a ring of repulsion that flings everything near.
+Combat.hz.gojoRedMax = function (h) {
+  const f = h.owner; if (!f || f.state === 'ko') return false;
+  h.x += h.vx / FPS;
+  for (const o of this.targets(h.side)) if (Math.abs(o.x - h.x) < 56 + o.w / 2 && Math.abs((o.y - o.h / 2) - h.y) < 80) {
+    Combat.resolveHit(o, f, H_({ dmg: 125, guard: 'mid', hs: 34, kb: [1500 * Math.sign(h.vx), -520], launch: true, wb: true, sfx: 'h' }), { proj: true, fromX: h.x - h.vx });
+    f.gauge = Math.min(100, f.gauge + 8);
+    for (const e of this.targets(h.side)) if (e !== o && Math.hypot(e.x - h.x, e.y - e.h / 2 - h.y) < 190) Combat.resolveHit(e, f, H_({ dmg: 44, guard: 'mid', hs: 20, kb: [Math.sign(e.x - h.x || 1) * 700, -420], launch: true, sfx: 'h' }), { proj: true, fromX: h.x });
+    Combat.addHazard({ kind: 'gojoBurst', owner: f, side: f.side, x: h.x, y: h.y, life: 24, col: '255,60,60', ring: true }); Combat.addHazard({ kind: 'gojoBurst', owner: f, side: f.side, x: h.x, y: h.y, life: 16, col: '255,230,230' });
+    Cam.shake = 20; gjSfx('impact', 1); return false;
+  }
+  for (const p of this.projectiles) if (p.side !== h.side && Math.abs(p.x - h.x) < 70 && Math.abs(p.y - h.y) < 70) p.life = 0;
+  return h.t < h.life && h.x > 0 && h.x < Arena.stage.width;
+};
+Combat.drawHz.gojoRedMax = function (c, h, t) { Combat.drawHz.gojoRed(c, h, t); c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(255,230,230,0.7)'; c.lineWidth = 4; c.beginPath(); c.arc(h.x, h.y, 34 + Math.sin(t * 30) * 4, 0, 7); c.stroke(); c.restore(); };
+
+const GJ_F_BLUE = mk({ name: 'Blue: Twin Lapse', desc: 'Six Eyes (10 CE): two points of attraction, one fast and one slow and wide, pulling from both sides of the foe.', pose: 'cast', s: 12, a: 1, r: 16, gjCharge: 'blue', ai: { min: 120, max: 900, use: 'zone' },
+  ev: { 3: () => gjSfx('gojBlue'), 12: f => { if (!gjSpend(f, 20)) return; Combat.addHazard({ kind: 'gojoBlue', owner: f, side: f.side, x: f.x + f.facing * 90, y: f.y - 80 * f.scale, vx: f.facing * 1250, life: 70 }); Combat.addHazard({ kind: 'gojoBlue', owner: f, side: f.side, x: f.x + f.facing * 90, y: f.y - 40 * f.scale, vx: f.facing * 520, life: 130 }); } } });
+const GJ_F_RED = mk({ name: 'Red: Max Output', desc: 'Six Eyes (30 CE): a faster Red that detonates twice. The second ring throws everything near the impact.', pose: 'cast', s: 16, a: 1, r: 20, gjCharge: 'red', ai: { min: 60, max: 900, use: 'zone' },
+  ev: { 2: () => gjSfx('gojRed'), 16: f => { if (!gjSpend(f, 30)) return; Combat.addHazard({ kind: 'gojoRedMax', owner: f, side: f.side, x: f.x + f.facing * 60, y: f.y - 82 * f.scale, vx: f.facing * 1500, life: 80 }); } } });
+const GJ_F_STEP = Mv.teleport({ name: 'Limitless Step', desc: 'Six Eyes: vanishes, appears behind the foe and strikes in the same breath, and the strike is always a BLACK FLASH.', to: 'behind', s: 5, hitDelay: 5, pose: 'heavy', cd: 2, inv: [1, 12], hit: { dmg: 66, box: [0, -110, 76, 100], kb: [380, -260], launch: true, hs: 24 } });
+{ const e5 = GJ_F_STEP.ev[4]; GJ_F_STEP.ev = { 1: f => { Combat.addHazard({ kind: 'gojoStep', owner: f, side: f.side, x: f.x, life: 18 }); gjSfx('gojStep'); }, 4: f => { e5(f); f.bfT = 80; } }; }
+const GJ_F_WARD = mk({ name: 'Infinity: Absolute', desc: 'Six Eyes: Infinity closes around him for 3s. Projectiles are thrown back, anything touching him is pushed away, and a shield absorbs the rest.', pose: 'block', s: 6, a: 20, r: 16, cd: 6, ai: { min: 0, max: 400, use: 'buff' },
+  ev: { 6: f => { Combat.reflect(f); Combat.buff(f, { shield: 260 }, 3, 'Infinity'); gjSfx('gojInfinity'); gjSfx('gojClap'); Combat.addHazard({ kind: 'gojoBurst', owner: f, side: f.side, x: f.x, y: f.y - 70, life: 26, col: '160,210,255', ring: true }); } } });
+
+const GJ_F_ULT = superize(mk({ name: 'HOLLOW PURPLE 200%', desc: 'Six Eyes: Blue and Red at maximum output merge into a beam of imaginary mass that erases a lane of the stage. Needs a full gauge. Blockable. Must connect.', pose: 'cast', s: 74, a: 30, r: 30, gjCharge: 'purple',
+  ev: { 2: f => { f.say('Nine ropes, polarized light, crow and declaration...', 140); gjSfx('gojPurple'); gjSfx('riser', 2.2, 0.22, 0, 90, 1100); },
+    74: f => { f.say('Hollow Technique: Purple.', 80); Combat.fireBeam(f, { len: 2800, width: 160, dur: 34, dmg: 6, tick: 6, super: true, ultConnect: true, color: '#b070ff', core: '#ffffff' }); Cam.shake = 22; gjSfx('gojRed'); gjSfx('impact', 1); gjSfx('boom'); } } }), 300);
+GJ_F_ULT.id = 'gojo_fult'; GJ_F_ULT.recoverWhiff = 40;
+GJ_F_ULT.ult = { dmg: 1320, cutscene: (a, t) => csPurple200(a, t), fx: { el: 'light', color: '#b070ff' } };
+
+Object.assign(gojo.form, { moves: { '5S': GJ_F_BLUE, '6S': GJ_F_RED, '4S': GJ_F_STEP, '2S': GJ_F_WARD }, ult: GJ_F_ULT });
+for (const [slot, m] of Object.entries(gojo.form.moves)) { m.id = 'gojo_f' + slot; m.slot = slot; m.owner = 'gojo'; }
+gojo.form.desc = 'Permanent. The blindfold comes off: techniques cost half, and he gains a second moveset (Twin Lapse Blue, Max Output Red, Limitless Step, Infinity: Absolute), the ultimate HOLLOW PURPLE 200%.';
+// HOLLOW PURPLE 200% — Blue and Red are drawn out of the air on either side of him and collide; the world is a lane of erased light.
+function csPurple200(a, opp) {
+  const fx = new ParticleSystem(1800), A = PxKit.actor(a.def), oppScale = opp.transformed && opp.def.id === 'eric' ? 0.55 : 1.7;
+  return {
+    name: 'HOLLOW PURPLE 200%', dur: 8.6, fx,
+    cues: [[0, () => gjSfx('gojEyes')], [1.5, () => gjSfx('gojBlue')], [2.4, () => gjSfx('gojRed')], [3.6, () => gjSfx('gojPurple')], [5.3, () => { gjSfx('gojRed'); gjSfx('impact', 1); gjSfx('boom'); }], [6.4, () => gjSfx('gojClap')]],
+    draw(c, t) {
+      const gather = ease.inOut(seg(t, 1.4, 3.8)), fire = t - 5.3, gy = H - 74, ax = W * .2, cx = ax + 110, cy = gy - 230;
+      PxKit.scene(c, x => {
+        const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#05030e'); g.addColorStop(1, `rgb(${lerp(20, 60, gather) | 0},${lerp(24, 20, gather) | 0},${lerp(50, 110, gather) | 0})`); x.fillStyle = g; x.fillRect(0, 0, W, H);
+        x.globalCompositeOperation = 'lighter'; gjStars(x, t, .5 + gather); glowCircle(x, cx + 90, cy, 520 * gather, 'rgba(150,70,255,0.4)', 'rgba(0,0,0,0)'); x.globalCompositeOperation = 'source-over';
+        x.fillStyle = '#0a0818'; x.fillRect(0, gy, W, H - gy);
+        if (fire > 0) { const w = 170 * Math.min(1, fire * 5) * (1 - seg(fire, 1.8, 3)) + 4; x.globalCompositeOperation = 'lighter'; x.fillStyle = 'rgba(120,40,220,0.7)'; x.fillRect(cx, cy - w * 1.5, W, w * 3); x.fillStyle = 'rgba(210,150,255,0.9)'; x.fillRect(cx, cy - w, W, w * 2); x.fillStyle = '#fff'; x.fillRect(cx, cy - w * .4, W, w * .8); x.globalCompositeOperation = 'source-over'; }
+      }, .3);
+      A(c, ax, gy + 4, 2.8, t, t < 5.3 ? 'cast' : 'heavy', { transformed: true, unveil: 1, move: t < 5.3 ? { gjCharge: 'purple' } : null, mf: 0 });
+      // Blue (left) and Red (right) are called in from the edges and spiral together
+      if (t > 1.4 && fire < 0) { const sep = (1 - gather) * 340, an = t * 7; c.save(); c.globalCompositeOperation = 'lighter';
+        const bx = cx + 90 - Math.cos(an) * sep, by = cy - Math.sin(an) * sep * .6, rx = cx + 90 + Math.cos(an) * sep, ry = cy + Math.sin(an) * sep * .6;
+        glowCircle(c, bx, by, 70, 'rgba(60,130,255,0.95)', 'rgba(0,0,0,0)'); glowCircle(c, rx, ry, 70, 'rgba(255,50,60,0.95)', 'rgba(0,0,0,0)');
+        if (gather > .9) { const R = 40 + (gather - .9) * 600; glowCircle(c, cx + 90, cy, R * 2, 'rgba(160,80,255,0.7)', 'rgba(0,0,0,0)'); c.fillStyle = '#e0c0ff'; c.beginPath(); c.arc(cx + 90, cy, R, 0, 7); c.fill(); c.fillStyle = '#fff'; c.beginPath(); c.arc(cx + 90, cy, R * .5, 0, 7); c.fill(); }
+        for (let i = 0; i < 3; i++) fx.add({ x: bx, y: by, vx: rand(-60, 60), vy: rand(-60, 60), life: .5, size: 5, color: '#7ab4ff', glow: true }), fx.add({ x: rx, y: ry, vx: rand(-60, 60), vy: rand(-60, 60), life: .5, size: 5, color: '#ff6a70', glow: true });
+        c.restore(); }
+      // the foe, at the far end of the lane
+      const ox = W * .78;
+      if (fire < 0.12) silhouette(c, o => drawCharAt(o, opp.def, ox, gy + 4, oppScale, -1, { pose: 'block', anim: t, transformed: opp.transformed }), fire > 0 ? '#ffffff' : '#241a4a');
+      else { const k = seg(fire, .12, 1.3); for (let i = 0; i < 10; i++) { c.save(); c.beginPath(); c.rect(0, gy - 260 + i * 26, W, 26); c.clip(); c.globalAlpha = Math.max(0, 1 - k * 1.3 - i * .02); c.translate(k * 380 * (.3 + i * .08), 0); silhouette(c, o => drawCharAt(o, opp.def, ox, gy + 4, oppScale, -1, { pose: 'hurt', anim: t, transformed: opp.transformed }), '#e0c0ff'); c.restore(); } }
+      fx.draw(c);
+      if (t < 1.4) caption(c, 'Let me show you something from the limit.', t, .3, 1.35, '#bfe8ff');
+      if (t > 2.0 && t < 5.2) caption(c, 'Nine ropes, polarized light, crow and declaration.', t, 2.1, 5.1, '#d6c0ff');
+      flashAt(c, t, 5.3, 5.9, '#ffffff');
+      if (t > 6.5) titleSlam(c, 'HOLLOW PURPLE 200%', 'THROUGHOUT HEAVEN AND EARTH', t, 6.6, '#b070ff', 92);
+    },
+  };
+}

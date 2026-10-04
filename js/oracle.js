@@ -317,3 +317,55 @@ rival('oracle', 'echo', [[0, 'You are going to say something clever. I have alre
   { oracle: 'As foreseen.', echo: 'Nobody sees everything. Not even you.' });
 // keep Oracle where she was in the roster (just before Viper)
 { const o = ROSTER.pop(), i = ROSTER.findIndex(d => d.id === 'viper'); if (i >= 0) ROSTER.splice(i, 0, o); else ROSTER.push(o); }
+
+// ============================================================
+//  THIRD EYE: a second moveset and THE LAST PROPHECY.
+// ============================================================
+const ORA_F_ORB = Mv.shot({ name: 'Constellation', desc: 'Third Eye: five star-orbs fan out and home in, tracing a constellation across the foe.', s: 12, proj: { speed: 560, r: 12, dmg: 38, count: 5, spread: 1.1, homing: 3.2, kind: 'star', color: '#fff0b0', life: 3 }, ev: { 2: () => oraSfx('oraVision'), 12: () => oraSfx('oraStar') } });
+const ORA_F_FATED = mk({ name: 'Fated: Twin Threads', desc: 'Third Eye: Fated Strike with FATE always full. Two threads of light fall, one ahead and one on the foe now.', pose: 'cast_up', s: 18, a: 1, r: 22, cd: 4, ai: { min: 80, max: 900, use: 'zone' }, ev: { 4: ORA_FATED.ev[4], 18: f => { f.gauge = 100; ORA_FATED.ev[20](f); } } });
+const ORA_F_OMEN = mk({ name: 'Eye of Ruin', desc: 'Third Eye: three eye-runes in a row, each opening in turn as the foe crosses them.', pose: 'cast', s: 16, a: 1, r: 22, cd: 6, ai: { min: 100, max: 700, use: 'trap' },
+  ev: { 16: f => { const own = Combat.hazards.filter(h => h.kind === 'oraOmen' && h.owner === f); while (own.length > 3) own.shift().life = 0; for (let i = 0; i < 3; i++) Combat.addHazard({ kind: 'oraOmen', owner: f, side: f.side, x: clamp(f.x + f.facing * (170 + i * 130), 60, Arena.stage.width - 60), life: 9 * FPS }); oraSfx('oraEyeOpen'); } } });
+const ORA_F_ULT = superize(mk({ name: 'THE LAST PROPHECY', desc: 'Third Eye: the constellation completes. Stars fall across the whole stage in the order she has already written, and the final one finds the foe. Blockable. Must connect.', pose: 'cast_up', s: 52, a: 4, r: 28,
+  ev: { 1: f => { f.oraEye = 100; oraSfx('oraEyeOpen'); oraSfx('oraWhisper', 0.4); const t = f.opp; f.ultTele = Combat.telegraph(f, { x: t ? t.x : f.x, follow: t, track: .14, r: 120, life: 999, color: '#fff0b0', column: true });
+      for (let i = 0; i < 7; i++) { const x = clamp(f.x + f.facing * (120 + i * 150), 50, Arena.stage.width - 50); Combat.telegraph(f, { x, r: 60, life: 14 + i * 5, color: '#ffe9a8', column: true, onFire: h => oraStrike(f, h.x, h.r, 40, ORA_F_ULT, { life: 16 }) }); } },
+    52: f => { const x = f.ultTele ? f.ultTele.x : f.x; if (f.ultTele) f.ultTele.life = 0; f.ultTele = null; f.oraEye = 0;
+      for (const e of Combat.targets(f.side)) if (Math.abs(e.x - x) < 120) Combat.resolveHit(e, f, H_({ dmg: 10, hs: 60, kb: [0, 0], ultConnect: true, guard: 'mid' }), { proj: true, fromX: x, move: ORA_F_ULT });
+      Combat.addHazard({ kind: 'oraPillar', owner: f, side: f.side, x, r: 120, life: 36, big: true }); Cam.shake = 22; oraSfx('oraShatter'); oraSfx('aurSmite', 0.05); } } }), 300);
+ORA_F_ULT.id = 'oracle_fult'; ORA_F_ULT.recoverWhiff = 30;
+ORA_F_ULT.ult = { dmg: 1220, cutscene: (a, t) => csOracleProphecy(a, t), fx: { el: 'time', color: '#ffe08a' } };
+Object.assign(oracle.form, { moves: { '5S': ORA_F_ORB, '6S': ORA_F_FATED, '4S': ORA_F_OMEN }, ult: ORA_F_ULT, desc: 'Permanent. The sight-band falls away: foresight doubles, strikes hit harder. New moveset (Constellation, Twin Threads, Eye of Ruin) and the ultimate THE LAST PROPHECY.' });
+for (const [slot, m] of Object.entries(oracle.form.moves)) { m.id = 'oracle_f' + slot; m.slot = slot; m.owner = 'oracle'; }
+
+// THE LAST PROPHECY — the stars connect into the shape of the foe, and the sky writes the last line.
+function csOracleProphecy(a, opp) {
+  const fx = new ParticleSystem(1800), A = PxKit.actor(a.def), oppScale = opp.transformed && opp.def.id === 'eric' ? 0.55 : 1.55;
+  const pts = Array.from({ length: 34 }, (_, i) => { const an = i * 2.399, r = 40 + (i * 29) % 230; return [W * .62 + Math.cos(an) * r * 1.5, H * .3 + Math.sin(an) * r * .55 - 20]; });
+  return {
+    name: 'THE LAST PROPHECY', dur: 8.4, fx,
+    cues: [[0, () => oraSfx('oraWhisper')], [1.0, () => oraSfx('oraEyeOpen')], [2.0, () => oraSfx('oraVision')], [3.4, () => oraSfx('oraRewind', 0, 1.2)], [4.6, () => oraSfx('riser', 1.4, .26, 0, 160, 2800)], [5.8, () => { oraSfx('oraShatter'); oraSfx('aurSmite'); }], [6.6, () => oraSfx('oraBellLike' in Sfx ? 'oraBellLike' : 'oraFlash')]],
+    draw(c, t) {
+      const link = seg(t, 1.8, 4.4), gather = ease.in(seg(t, 4.6, 5.8)), hit = t - 5.8, gy = H - 74, ax = W * .16;
+      PxKit.scene(c, x => {
+        const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#04020c'); g.addColorStop(1, '#241a3c'); x.fillStyle = g; x.fillRect(0, 0, W, H); oraStars(x, t, 90);
+        x.globalCompositeOperation = 'lighter'; x.strokeStyle = 'rgba(255,224,138,0.8)'; x.lineWidth = 4; x.beginPath();
+        const n = Math.floor(link * pts.length); for (let i = 0; i < n; i++) { const [px_, py] = pts[i]; i ? x.lineTo(px_, py) : x.moveTo(px_, py); } x.stroke();
+        for (let i = 0; i < pts.length; i++) { if (i > n) break; x.fillStyle = i % 3 ? '#fff0b0' : '#ffffff'; x.fillRect(pts[i][0] - 6, pts[i][1] - 6, 12, 12); }
+        glowCircle(x, W * .62, H * .3, 100 + 300 * gather, `rgba(255,224,138,${.2 + .5 * gather})`, 'rgba(0,0,0,0)'); x.globalCompositeOperation = 'source-over';
+        x.fillStyle = '#0a0614'; x.fillRect(0, gy, W, H - gy); x.fillStyle = '#4a3a70'; x.fillRect(0, gy, W, 5);
+      }, .3);
+      A(c, ax, gy - 40 + Math.sin(t * 2.4) * 6, 3.0, t, t < 5.8 ? 'cast_up' : 'victory', { transformed: true, oraEye: 100 });
+      const ox = W * .72;
+      if (hit < 0.12) silhouette(c, o => drawCharAt(o, opp.def, ox, gy + 4, oppScale, -1, { pose: 'block', anim: t, transformed: opp.transformed }), hit > 0 ? '#ffffff' : '#6a5a90');
+      else silhouette(c, o => drawCharAt(o, opp.def, ox, gy + 4, oppScale, -1, { pose: 'kneel', anim: t, transformed: opp.transformed }), '#6a5a90');
+      // seven stars fall in order, then the last one
+      for (let i = 0; i < 7; i++) { const s0 = 4.6 + i * .16, p = seg(t, s0, s0 + .5); if (p <= 0 || hit > 0.3) continue; const sx = W * .3 + i * 90, sy = lerp(-40, gy - 6, p * p); c.save(); c.globalCompositeOperation = 'lighter'; c.fillStyle = '#fff0b0'; c.fillRect(sx - 8, sy - 30, 16, 40); c.fillStyle = '#fff'; c.fillRect(sx - 4, sy - 12, 8, 14); glowCircle(c, sx, sy, 50, 'rgba(255,224,138,0.7)', 'rgba(0,0,0,0)'); c.restore(); }
+      if (t > 5.0 && hit < 0.9) { const w = (50 + 120 * gather) * (hit > 0 ? 1 - hit * .7 : 1); c.save(); c.globalCompositeOperation = 'lighter'; const gg = c.createLinearGradient(ox - w, 0, ox + w, 0); gg.addColorStop(0, 'rgba(255,230,150,0)'); gg.addColorStop(.5, `rgba(255,250,224,${hit > 0 ? 1 : gather})`); gg.addColorStop(1, 'rgba(255,230,150,0)'); c.fillStyle = gg; c.fillRect(ox - w, 0, w * 2, H); c.restore(); }
+      if (hit > 0 && hit < .1) for (let i = 0; i < 50; i++) fx.add({ x: ox + rand(-60, 60), y: gy - rand(0, 220), vx: rand(-500, 500), vy: rand(-700, -100), life: 1.4, size: rand(5, 11), color: pick(['#ffe08a', '#fff', '#c4a0ff']), glow: true, g: 500 });
+      fx.draw(c);
+      if (t < 1.8) caption(c, 'I wrote your ending long ago.', t, .3, 1.75, '#ffe9a8');
+      if (t > 2.4 && t < 4.5) caption(c, 'Every star is a choice you did not make.', t, 2.5, 4.4, '#ffe9a8');
+      flashAt(c, t, 5.75, 6.3, '#ffffff');
+      if (t > 6.7) titleSlam(c, 'THE LAST PROPHECY', 'FULFILLED', t, 6.8, '#ffe08a', 96);
+    },
+  };
+}

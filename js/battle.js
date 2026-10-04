@@ -62,7 +62,7 @@ class Battle {
     Combat.clear(); Game.fx.clear(); Game.texts = []; this.timeStop = null;
     const W0 = Arena.stage.width;
     this.sides.forEach((s, i) => {
-      s.members.forEach(f => { if (f.baseDef) f.def = f.baseDef; f.marks = {}; f.gauge = f.def.gauge ? (f.def.gauge.init || 0) : 0; if (f.def.onRoundStart) f.def.onRoundStart(f); f.corrupted = false; f.cheated = false; f.dbCount = 0; f.hp = f.maxHp; f.red = f.maxHp; f.shownHp = f.maxHp; f.keepForm = false; f.revived = false; f.form = false; f.reset(W0 / 2 + (i ? 260 : -260), i ? -1 : 1); f.state = 'benched'; f.x = -999; });
+      s.members.forEach(f => { if (f.baseDef) f.def = f.baseDef; f.marks = {}; f.gauge = f.def.gauge ? (f.def.gauge.init || 0) : 0; if (f.def.onRoundStart) f.def.onRoundStart(f); f.corrupted = false; f.cheated = false; f.rev2 = false; f.dbCount = 0; f.hp = f.maxHp; f.red = f.maxHp; f.shownHp = f.maxHp; f.keepForm = false; f.revived = false; f.form = false; f.reset(W0 / 2 + (i ? 260 : -260), i ? -1 : 1); f.state = 'benched'; f.x = -999; });
       s.point = s.members[0]; s.point.state = 'intro'; s.point.x = W0 / 2 + (i ? 260 : -260); s.point.y = 0;
       s.meter = this.training ? METER_MAX : first ? 100 : Math.max(s.meter, 100); s.combo = { hits: 0, dmg: 0, t: 0 }; s.assistCd = [0, 0];
       if (!first || !this.team) s.sparkUsed = s.sparkUsed && !this.training;
@@ -247,6 +247,9 @@ class Battle {
     if (t.state === 'ko') return;
     if (this.training) { t.hp = t.maxHp; t.red = t.maxHp; Game.popWorld(t.x, t.y - t.h - 40, 'HP RESET', '#7df', 24); return; }
     if (t.def.onDeath && t.def.onDeath(t, a, h) === true) return;
+    // Revival (def.revival): once per round the fighter refuses to fall. { hp, needForm, enterForm, cutscene(f), onRevive(f), label, say, meter, when(t,a) }
+    const RV = t.def.revival;
+    if (RV && !t.rev2 && (!RV.needForm || t.form) && !(RV.when && !RV.when(t, a))) { t.rev2 = true; t.hp = 1; t.invul = 999; t.move = null; t.vx = t.vy = 0; this.pendingRevival = t; return; }
     // World Ender style awakenings: cheat death once while the form is active
     if (t.form && t.def.form && t.def.form.cheatDeath && !t.cheated) {
       t.cheated = true; t.hp = t.red = Math.round(t.maxHp * t.def.form.cheatDeath); t.invul = 60; t.move = null; t.state = 'stand'; t.y = Math.min(t.y, 0);
@@ -290,6 +293,18 @@ class Battle {
     Game.fx.update(1 / FPS);
     for (const l of Game.laters.slice()) { if (--l.f <= 0) { Game.laters.splice(Game.laters.indexOf(l), 1); l.fn(); } }
     if (this.pendingRevive) { const t = this.pendingRevive; this.pendingRevive = null; Ach.unlock('revive'); Game.playCutscene(Cutscenes.transform(t), () => { t.hp = Math.round((t.def.reviveHp || 300) * HP_MULT); t.red = t.hp; t.shownHp = t.hp; t.state = 'stand'; t.y = 0; t.invul = 90; t.enterForm(); t.side.meter = Math.max(t.side.meter, 300); }); return; }
+    if (this.pendingRevival) {
+      const t = this.pendingRevival, RV = t.def.revival; this.pendingRevival = null;
+      const apply = () => {
+        if (RV.enterForm && !t.form) t.enterForm();
+        t.hp = t.red = t.shownHp = Math.round(t.maxHp * (RV.hp || 0.3)); t.state = 'stand'; t.y = 0; t.vx = t.vy = 0; t.invul = 90; t.move = null; t.side.meter = Math.max(t.side.meter, RV.meter ?? 200);
+        Game.popWorld(t.x, t.y - t.h - 50, RV.label || 'REVIVED', t.def.color, 30); Game.fx.burst(t.x, t.y - 70, 50, { color: [t.def.color, '#fff'], size: 11, speed: 480, glow: true, life: 0.8 }); Cam.shake = 14; Ach.unlock('revive');
+        if (RV.say) t.say(Array.isArray(RV.say) ? pick(RV.say) : RV.say, 120);
+        if (RV.onRevive) RV.onRevive(t);
+      };
+      if (Save.set.cutscenes === false || !RV.cutscene) apply(); else Game.playCutscene(RV.cutscene(t), apply);
+      return;
+    }
     if (this.pendingCorrupt) {
       const t = this.pendingCorrupt; this.pendingCorrupt = null;
       const apply = () => { t.corrupt(); t.hp = t.red = t.shownHp = Math.round(t.maxHp * (t.def.form.reviveFrac || 0.3)); t.state = 'stand'; t.y = 0; t.vx = t.vy = 0; t.invul = 90; t.side.meter = Math.max(t.side.meter, 200); };

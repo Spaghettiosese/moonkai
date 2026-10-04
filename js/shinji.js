@@ -306,3 +306,51 @@ rival('shinji', 'yhwach', [[0, 'So you\'re the old man who sees the future. Bet 
   { shinji: 'Guess you looked the wrong way.', yhwach: 'Your world returns to its proper orientation.' });
 rival('shinji', 'kael', [[0, 'Somethin\' inside you wants out, huh? I know the feelin\'.'], [1, 'How do you keep it in?'], [0, 'I don\'t. I put a mask on it.']],
   { shinji: 'Don\'t let it drive, kid.', kael: 'Maybe I should get a mask.' });
+
+// ============================================================
+//  VISORED: a second moveset and CERO OSCURAS.
+// ============================================================
+const SJ_F_HOWL = mk({ name: 'Hollow Howl', desc: 'Visored: a shriek that rolls out in front of him, staggering and inverting everything it touches.', pose: 'cast', s: 12, a: 1, r: 22, cd: 4, ai: { min: 0, max: 420, use: 'zone' },
+  ev: { 2: () => sjSfx('shiHowl', 0, 1.1), 12: f => { Combat.strikeZone(f, { x: f.facing > 0 ? f.x : f.x - 420, y: -240, w: 420, h: 244 }, { dmg: 46, hs: 26, guard: 'mid', kb: [380 * f.facing, -140], stun: 0.5, sfx: 'h' }, { move: SJ_F_HOWL, each: t => sjInvert(t, 3) }); Combat.addHazard({ kind: 'sjHowl', owner: f, side: f.side, x: f.x, dir: f.facing, life: 26 }); Cam.shake = 10; } } });
+const SJ_F_FLURRY = Mv.flurry({ name: 'Hollow Rush', desc: 'Visored: a feral flurry of slashes and claw rakes, ending in a thrust that opens the foe.', hits: 8, hit: { dmg: 24, box: [0, -120, 130, 110], status: { bleed: 2 } }, finisher: { dmg: 90, kb: [700, -300], launch: true, wb: true } });
+const SJ_F_ULT = superize(mk({ name: 'CERO OSCURAS', desc: 'Visored: a black Cero from the full Hollow. The sky goes dark, the moon cracks, and the foe is erased from the horizon. Blockable. Must connect.', pose: 'cast', s: 66, a: 34, r: 28,
+  ev: { 1: f => { f.sjUltMask = true; f.say('...Kneel.', 60); sjSfx('shiBerserk'); sjSfx('riser', 2.2, 0.22, 0, 70, 800); },
+    66: f => { Combat.fireBeam(f, { len: 2600, width: 120, dur: 34, dmg: 6, tick: 6, super: true, ultConnect: true, color: '#7a2aff', core: '#ffe0ff', from: 'mouth' }); Cam.shake = 18; sjSfx('shiRoar'); sjSfx('boom'); }, 100: f => { f.sjUltMask = false; } } }), 300);
+SJ_F_ULT.id = 'shinji_fult'; SJ_F_ULT.recoverWhiff = 40;
+SJ_F_ULT.ult = { dmg: 1280, cutscene: (a, t) => csShinjiOscuras(a, t), fx: { el: 'void', color: '#7a2aff' } };
+Object.assign(shinji.form, { moves: { '5S': SJ_F_HOWL, '2S': SJ_F_FLURRY }, ult: SJ_F_ULT, desc: 'Permanent. The full Hollow mask: +damage, Kido is a Cero, the dash is a pounce, HOLLOW fills twice as fast. New moveset (Hollow Howl, Hollow Rush) and the ultimate CERO OSCURAS.' });
+for (const [slot, m] of Object.entries(shinji.form.moves)) { m.id = 'shinji_f' + slot; m.slot = slot; m.owner = 'shinji'; }
+Combat.hz.sjHowl = h => h.t < h.life;
+Combat.drawHz.sjHowl = (c, h) => { const k = h.t / h.life; c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = `rgba(255,230,160,${1 - k})`; c.lineWidth = 6; for (let i = 0; i < 4; i++) { const r = 40 + k * 380 - i * 38; if (r > 0) { c.beginPath(); c.arc(h.x + h.dir * 40, -90, r, h.dir > 0 ? -.9 : Math.PI - .9, h.dir > 0 ? .9 : Math.PI + .9); c.stroke(); } } c.fillStyle = `rgba(255,60,40,${.8 * (1 - k)})`; for (let i = 0; i < 14; i++) c.fillRect(Math.round((h.x + h.dir * (30 + k * 360 * (.4 + (i % 5) * .15))) / 4) * 4, Math.round((-90 + Math.sin(i * 2.1) * 80) / 4) * 4, 8, 8); c.restore(); };
+
+// CERO OSCURAS — the sky is a black moon, the mask grows horns, and the beam is the colour of its own shadow.
+function csShinjiOscuras(a, opp) {
+  const fx = new ParticleSystem(1600), A = PxKit.actor(a.def), oppScale = opp.transformed && opp.def.id === 'eric' ? 0.55 : 1.7;
+  return {
+    name: 'CERO OSCURAS', dur: 8.6, fx,
+    cues: [[0, () => sjSfx('heartbeat')], [1.4, () => sjSfx('shiAlarm', 0, 3)], [2.6, () => sjSfx('shiBerserk')], [3.8, () => sjSfx('riser', 1.6, 0.26, 0, 70, 1200)], [5.4, () => { sjSfx('shiRoar'); sjSfx('boom'); sjSfx('beam', 1.6); }], [7.2, () => sjSfx('shiHowl', 0, 0.9)]],
+    draw(c, t) {
+      const dark = ease.inOut(seg(t, .8, 3.2)), charge = ease.in(seg(t, 3.8, 5.4)), fire = t - 5.4, gy = H - 74, ax = W * .2, mx = ax + 96, my = gy - 215, ox = W * .76;
+      PxKit.scene(c, x => {
+        const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, `rgb(${lerp(40, 4, dark) | 0},${lerp(24, 0, dark) | 0},${lerp(50, 14, dark) | 0})`); g.addColorStop(1, `rgb(${lerp(110, 30, dark) | 0},${lerp(60, 6, dark) | 0},${lerp(90, 40, dark) | 0})`); x.fillStyle = g; x.fillRect(0, 0, W, H);
+        // a vast black moon that cracks when the beam lands
+        const my2 = H * .3, cr = fire > 0 ? Math.min(1, fire / .8) : 0; x.fillStyle = '#05010a'; x.beginPath(); x.arc(W * .55, my2, 230, 0, 7); x.fill(); x.strokeStyle = `rgba(190,100,255,${.5 + .5 * charge})`; x.lineWidth = 10; x.beginPath(); x.arc(W * .55, my2, 232, 0, 7); x.stroke();
+        if (cr > 0) { x.strokeStyle = '#d8a0ff'; x.lineWidth = 8; x.beginPath(); x.moveTo(W * .55 - 200, my2 - 90); x.lineTo(W * .55 - 40 * cr, my2 - 10); x.lineTo(W * .55 + 60, my2 + 50 * cr); x.lineTo(W * .55 + 210, my2 + 120); x.stroke(); }
+        x.fillStyle = '#0a0410'; for (let i = 0; i < 16; i++) x.fillRect(i * 90 - 10, gy - 40 - (i * 59 % 6) * 30, 84, 600);
+        x.fillStyle = '#12061a'; x.fillRect(0, gy, W, H - gy);
+        x.globalCompositeOperation = 'lighter'; glowCircle(x, mx, my, 520 * charge, 'rgba(150,40,255,0.45)', 'rgba(0,0,0,0)'); x.globalCompositeOperation = 'source-over';
+        if (fire > 0) { const w = 130 * Math.min(1, fire * 6) * (1 - seg(fire, 1.6, 2.6)) + 4; x.globalCompositeOperation = 'lighter'; x.fillStyle = 'rgba(20,0,40,0.8)'; x.fillRect(mx, my - w * 1.5, W, w * 3); x.fillStyle = 'rgba(150,50,255,0.9)'; x.fillRect(mx, my - w, W, w * 2); x.fillStyle = '#ffe8ff'; x.fillRect(mx, my - w * .45, W, w * .9); x.globalCompositeOperation = 'source-over'; }
+      }, .3);
+      A(c, ax, gy + 4, 2.8, t, t < 5.4 ? 'cast' : 'heavy', { transformed: true, sjMask: 99, form: true, sjUltMask: true });
+      if (t > 3.8 && fire < 0) { c.save(); c.globalCompositeOperation = 'lighter'; const R = 12 + charge * 100; glowCircle(c, mx, my, R * 2, 'rgba(160,60,255,0.6)', 'rgba(0,0,0,0)'); c.fillStyle = '#a040ff'; c.beginPath(); c.arc(mx, my, R, 0, 7); c.fill(); c.fillStyle = '#fff0ff'; c.beginPath(); c.arc(mx, my, R * .5, 0, 7); c.fill(); c.strokeStyle = '#0a0014'; c.lineWidth = 7; c.beginPath(); c.arc(mx, my, R * 1.25, t * 9, t * 9 + 2.4); c.stroke(); c.restore(); }
+      if (fire < 0.1) silhouette(c, o => drawCharAt(o, opp.def, ox, gy + 4, oppScale, -1, { pose: t < 5.4 ? 'block' : 'hurt', anim: t, transformed: opp.transformed }), fire > 0 ? '#ffffff' : '#2a1040');
+      else { const k = seg(fire, .1, 1.5); for (let i = 0; i < 12; i++) { c.save(); c.beginPath(); c.rect(0, gy - 280 + i * 24, W, 24); c.clip(); c.globalAlpha = Math.max(0, 1 - k * 1.2 - i * .02); c.translate(k * 340 * (.4 + i * .08), 0); silhouette(c, o => drawCharAt(o, opp.def, ox, gy + 4, oppScale, -1, { pose: 'hurt', anim: t, transformed: opp.transformed }), '#e8c0ff'); c.restore(); } }
+      if (fire >= 0) for (let i = 0; i < 5; i++) fx.add({ x: ox, y: my + rand(-90, 90), vx: rand(100, 1400), vy: rand(-300, 300), life: .9, size: rand(5, 12), color: pick(['#a040ff', '#ffe8ff', '#200030']) });
+      fx.draw(c);
+      if (t < 1.6) caption(c, 'Lookin\' at the sky? Wrong way again.', t, .2, 1.55, '#ffd35a');
+      if (t > 3.0 && fire < 0) caption(c, '...Cero Oscuras.', t, 3.4, 5.2, '#d8a0ff');
+      flashAt(c, t, 2.55, 2.9, '#ffe9a0'); flashAt(c, t, 5.4, 5.9, '#ffffff');
+      if (t > 6.9) titleSlam(c, 'CERO OSCURAS', 'THE MOON IS NOT COMING BACK', t, 7.0, '#a040ff', 98);
+    },
+  };
+}
