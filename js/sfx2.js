@@ -190,3 +190,24 @@
     morHeal(d = 0) { this.voice({ f: 180, to: 360, dur: 0.6, vol: 0.18, type: 'triangle', n: 3, det: 20, delay: d, wet: 0.7 }); this.nsweep({ f0: 400, f1: 2400, dur: 0.6, vol: 0.08, q: 4, delay: d, wet: 0.7 }); },
   });
 })();
+
+// ============================================================
+//  GLOBAL UPGRADE: the original one-oscillator effects gain layers (sub weight, FM metal, reverb tails) so every fighter,
+//  old or remade, sounds fuller. Each wrapper calls the original sound first and then adds a quiet layer on top.
+// ============================================================
+(() => {
+  const S = Sfx, wrap = (n, extra) => { const o = S[n]; if (typeof o !== 'function') return; S[n] = function (...a) { o.apply(this, a); try { if (this.ac) extra.apply(this, a); } catch (e) { } }; };
+  wrap('boom', function (d = 0) { this.sub({ f: 62, to: 24, dur: 1.1, vol: .22, delay: d, wet: .25 }); this.nsweep({ f0: 2400, f1: 90, dur: .9, vol: .1, type: 'lowpass', delay: d, wet: .5 }); });
+  wrap('roar', function (d = 0) { this.voice({ f: 74, to: 44, dur: 1.6, vol: .1, type: 'sawtooth', lp: 520, n: 3, det: 24, delay: d, wet: .5 }); this.nsweep({ f0: 300, f1: 1500, dur: 1.1, vol: .06, q: 1.4, delay: d, wet: .4 }); });
+  wrap('zap', function (d = 0) { this.crackle({ dur: .22, vol: .06, delay: d }); this.fm({ f: 2200, ratio: 3.1, index: 200, dur: .3, vol: .04, delay: d, wet: .5 }); });
+  wrap('bell', function (d = 0) { this.fm({ f: 880, ratio: 3.5, index: 140, dur: 1.8, vol: .06, delay: d, wet: .8 }); });
+  wrap('slam', function () { this.sub({ f: 80, to: 30, dur: .5, vol: .18, wet: .15 }); });
+  wrap('hit', function () { this.nsweep({ f0: 5000, f1: 700, dur: .06, vol: .08, type: 'highpass' }); });
+  wrap('blast', function () { this.nsweep({ f0: 1000, f1: 6000, dur: .2, vol: .06, q: 1, wet: .3 }); });
+  wrap('beam', function (dur = 1, d = 0) { this.voice({ f: 320, to: 270, dur, vol: .04, type: 'sawtooth', lp: 1800, n: 3, det: 30, delay: d, wet: .4 }); });
+  wrap('clang', function () { this.fm({ f: 620, ratio: 2.76, index: 300, dur: .5, vol: .05, wet: .4 }); });
+  wrap('charge', function (dur = 1, d = 0) { this.nsweep({ f0: 200, f1: 3000, dur, vol: .05, q: 2, delay: d, swell: true, wet: .3 }); });
+  wrap('teleport', function () { this.nsweep({ f0: 6000, f1: 300, dur: .15, vol: .08, type: 'highpass', wet: .4 }); });
+  wrap('ko', function () { this.sub({ f: 70, to: 24, dur: 1.4, vol: .3, wet: .3 }); });
+  wrap('heal', function () { this.run({ notes: [1047, 1319, 1568], step: .06, dur: .5, vol: .04, wet: .6 }); });
+})();
