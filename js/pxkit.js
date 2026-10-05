@@ -314,3 +314,47 @@ PxKit.bust = function (def, o = {}) {
   const px = PxKit.portrait((def.id) + '_bust', fn, { res: 100, levels: 16, dither: 0, outline: false });
   def.drawPortrait = (c, opts, d) => PxKit.on() ? px(c, opts, d) : (prev ? prev(c, opts, d) : fn(c, opts, d));
 };
+
+// ---------------------------------------------------------------------------------------------
+//  PxKit.cineForm(f, o) -> an awakening cutscene for one fighter (no opponent).
+//   o: { name, dur=6.4, tc=[1.0,3.4] charge window, tf=3.6 flash time, c1,c2,c3, bg(x,t,k,burst) low-res backdrop, motif: 'converge'|'rise'|'implode'|'rain'
+//        shape: 'rect'|'dot', pose:[idle, charge, burst], lift, scale, gh, extra (view props), cap1, cap2, title, sub, size, cues, ring:true, bolts:true }
+// ---------------------------------------------------------------------------------------------
+PxKit.cineForm = function (f, o) {
+  const fx = new ParticleSystem(1800), A = PxKit.actor(f.def), dur = o.dur || 6.4, tc = o.tc || [1.0, 3.4], tf = o.tf || 3.6, gy = H - (o.gh || 70), S = o.scale || 3.0, cx = W / 2;
+  const c1 = o.c1 || '#ffd35a', c2 = o.c2 || '#ffffff', c3 = o.c3 || '#402060', pose = o.pose || ['idle', 'charge', 'victory'], motif = o.motif || 'converge';
+  const spawn = () => {
+    for (let i = 0; i < 4; i++) {
+      const a = Math.random() * 6.283, R = 360 + Math.random() * 300, life = .7 + Math.random() * .5, col = [c1, c2, c1, c3][i & 3], sz = 3 + Math.random() * 6;
+      let x, y, vx, vy;
+      if (motif === 'rise') { x = cx + (Math.random() - .5) * 420; y = gy + 10; vx = (Math.random() - .5) * 60; vy = -(200 + Math.random() * 420); }
+      else if (motif === 'rain') { x = Math.random() * W; y = -10; vx = (Math.random() - .5) * 40; vy = 500 + Math.random() * 500; }
+      else if (motif === 'implode') { x = cx + Math.cos(a) * R * 1.5; y = gy - 150 + Math.sin(a) * R * .8; vx = (cx - x) / life * 1.4; vy = (gy - 150 - y) / life * 1.4; }
+      else { x = cx + Math.cos(a) * R * 1.4; y = gy - 150 + Math.sin(a) * R * .8; vx = (cx - x) / life; vy = (gy - 150 - y) / life; }
+      fx.add({ x, y, vx, vy, life, color: col, size: sz, glow: true, shape: o.shape || 'dot', rot: a, vr: 6 });
+    }
+  };
+  return {
+    name: o.name || 'AWAKENING', dur, fx, cues: o.cues || [],
+    draw(c, t) {
+      const k = PxKit.clamp01((t - tc[0]) / (tc[1] - tc[0])), burst = t - tf, fl = PxKit.clamp01(burst / .5), up = PxKit.clamp01(burst / 1.1);
+      PxKit.scene(c, x => {
+        if (o.bg) o.bg(x, t, k, burst); else PxKit.sky(x, t, { top: '#05030a', bot: c3, stars: true }, k);
+        x.globalCompositeOperation = 'lighter'; glowCircle(x, cx, gy - 150, 80 + 340 * k + (burst > 0 ? 420 * fl : 0), hexA(c1, .16 + .36 * k), 'rgba(0,0,0,0)'); x.globalCompositeOperation = 'source-over';
+        x.fillStyle = 'rgba(0,0,0,0.5)'; x.fillRect(0, gy + 8, W, H - gy);
+      }, .3);
+      if (t > tc[0] && t < tf) spawn();
+      fx.draw(c);
+      if (o.bolts && t > tc[0] && t < tf + .3) { c.save(); c.globalCompositeOperation = 'lighter'; for (let i = 0; i < 3; i++) { const sd = Math.floor(t * 14) + i * 5, ax = cx + Math.sin(sd * 3.1) * 560; c.strokeStyle = i ? c1 : c2; c.lineWidth = 5 - i; c.beginPath(); c.moveTo(ax, 0); for (let j = 1; j <= 8; j++) c.lineTo(lerp(ax, cx, j / 8 * k) + Math.sin(sd + j * 7) * 40 * (1 - j / 8), (gy - 150) * j / 8); c.stroke(); } c.restore(); }
+      const shake = burst > 0 && burst < .6 ? (1 - burst / .6) * 10 : (k > .5 && burst < 0 ? k * 3 : 0); c.save(); if (shake) c.translate(rand(-shake, shake), rand(-shake, shake));
+      const lift = (o.lift ?? 0) * (burst < 0 ? ease.inOut(k) : 1 - up * .4);
+      A(c, cx, gy + 4 - lift, S + up * .25, t, t < tc[0] ? pose[0] : burst < 0 ? pose[1] : pose[2], Object.assign({ transformed: burst > 0 }, o.extra || {}));
+      c.restore();
+      if (o.ring !== false && burst > 0 && burst < 1) { c.save(); c.globalCompositeOperation = 'lighter'; const R = 900 * ease.out(burst); for (let i = 0; i < 44; i++) { const a = i / 44 * 6.283; c.fillStyle = i % 2 ? hexA(c1, 1 - burst) : hexA(c2, 1 - burst); c.fillRect(Math.round((cx + Math.cos(a) * R) / 4) * 4, Math.round((gy - 120 + Math.sin(a) * R * .35) / 4) * 4, 12, 12); } c.restore(); }
+      if (o.cap1) caption(c, o.cap1, t, .3, tf - .6, o.capColor || c2);
+      if (o.cap2) caption(c, o.cap2, t, tf + .2, dur - 1.2, o.capColor || c2);
+      flashAt(c, t, tf - .05, tf + .45, o.flash || c2);
+      titleSlam(c, o.title || o.name || 'AWAKENED', o.sub || '', t, tf + .9, c1, o.size || 100);
+    },
+  };
+};
