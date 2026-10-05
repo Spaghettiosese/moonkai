@@ -100,3 +100,17 @@ Aurelion, Oracle, Shinji, Gojo, Mordekaiser, Eric, Aatrox, Jinx, Kira Sol, Serap
 Revivals are rare on purpose. Beyond Kael, Aatrox, Aurelion (Fallen God), Kira Sol (Rekindle) and Sion (Glory in Death), only Mordekaiser (returns from the Realm, awakened), Neon (1UP) and Yuji (Sukuna takes over) can get back up. In Training, press **F10** to test your fighter's revival.
 
 New shared code: `js/pxkit.js` (portraits, low-res cinematic scenes, `pixelize`, revival and ultimate cinematic builders), `js/pxmodel.js` (a pixel renderer for model-driven fighters), and one `js/rw_<fighter>.js` per reworked fighter.
+
+
+### Second wave: the rest of the roster
+
+Every other fighter now has the same treatment, each in its own `js/rw2_<fighter>.js`: Vex, Kael, Volt, Glacia, Nyx, Dr. Gear, Titan, Terra, Echo, Mira Tide, Onyx, Pixel, Kage, Arachna, Hex, Maximus, Rex, Helios, Luna, Cipher, Fang, Master Hoshi, Dr. Mortis, Chrome, Titania, Vulcan, Spectre, Nova, Iron Jaw, Viper, Karma, Dune, Blitz, Morph, Kingpin, Prof. Quanta, Abyss, Roo, Omega, Tommy & Boltz, Madame Rose, Cosmo, Detonator, Warden, Chef Brulee and Beat (plus a form ultimate for Volibear). Each one has:
+
+- **Its own mechanic**, shown as a gauge or a mark on the foe: e.g. Titan's GRIT, Nyx's contracts, Echo's RESONANCE (her sound rings come back), Onyx's WEIGHT, Hex's HEXES, Detonator's FUSE (bombs chain), Warden's SHACKLES, Viper's ENVENOM.
+- **A five-move form moveset** and a **form ultimate**, each with its own cinematic, an awakening cutscene built with `PxKit.cineForm`, and a redone base-ultimate cinematic.
+- **Its own sounds** (4-6 named effects per fighter in `Sfx`) and an anime-style portrait per form (`js/rw_faces2.js`).
+- Two more rare revivals: Dr. Mortis (phylactery) and Vulcan (re-forged), once per match.
+
+### Special moves (the I key)
+
+Special moves that quietly did nothing are fixed. The move builders (`Mv.shot`, `Mv.place`, `Mv.buff`, ...) replaced their own built-in event whenever a move was given an `ev` hook for a sound or an extra effect, so those moves never fired. Hooks now chain with the built-in event (`mergeEv` in `js/moves.js`). Pressing a special on cooldown now says so instead of doing nothing.
