@@ -34,9 +34,17 @@ function makeNormals(st = {}) {
 const AUTO_GROUND = ['5L', '5L2', '5M', '2H'], AUTO_AIR = ['jL', 'jM', 'jH'];
 
 // ---------- archetypes ----------
+// Chain two frame->handler maps: on the same frame the base handler runs first, then the extra one.
+// (Callers pass sound/extra hooks in `ev`; those must add to a helper's built-in event, never replace it.)
+function mergeEv(a, b) {
+  const r = Object.assign({}, a);
+  for (const k of Object.keys(b || {})) { const x = a && a[k], y = b[k]; r[k] = x ? (f, ...rest) => { x(f, ...rest); y(f, ...rest); } : y; }
+  return r;
+}
 function mk(o, d) {
   const m = Object.assign({ kind: 'special', level: 3, pose: 'cast', s: 12, a: 1, r: 18 }, d || {}, o);
   if (o.hit) m.hit = H_(Object.assign({}, d && d.hit || {}, o.hit));
+  if (d && d.ev) m.ev = mergeEv(d.ev, o.ev);
   return m;
 }
 function superize(m, cost) {
@@ -49,7 +57,7 @@ const Mv = {
   shot(o) {
     const p = Object.assign({ speed: 720, r: 11, dmg: 48, hs: 20, bs: 14, kb: [180, -40], count: 1, spread: 0.2, angle: 0, kind: 'orb', color: '#8fd3ff', core: '#fff', life: 2.2, prio: 1 }, o.proj);
     const at = o.s || 12;
-    return mk(o, { pose: 'cast', s: at, a: 1, r: 18, ev: Object.assign({ [at]: f => Combat.fireShots(f, p) }, o.ev || {}), ai: { min: 140, max: 1500, use: 'zone' } });
+    return mk(o, { pose: 'cast', s: at, a: 1, r: 18, ev: { [at]: f => Combat.fireShots(f, p) }, ai: { min: 140, max: 1500, use: 'zone' } });
   },
   // Beam from hand (or mouth): len, width, dur (frames), dmg per tick, tick, angle, color, style
   beam(o) {

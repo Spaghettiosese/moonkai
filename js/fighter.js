@@ -188,7 +188,11 @@ class Fighter {
       const slot = air ? 'jS' : e.y > 0 ? '2S' : rel > 0 ? '6S' : rel < 0 ? '4S' : '5S';
       let m = this.special(slot) || (air ? null : this.special('5S'));
       if (m && air && !m.air) m = null;
-      if (m && !this.cdOK(m)) m = null;
+      if (m && !this.cdOK(m)) {
+        // tell a human player why nothing happened instead of silently eating the press
+        if (this.ctrl && this.ctrl.startsWith('human') && !(this.cdMsgT > Game.battle.frame)) { this.cdMsgT = Game.battle.frame + 30; const left = Math.ceil((this.cds[m.name] - Game.battle.frame) / FPS); Game.popWorld(this.x, this.y - this.h - 30, m.name + ' ' + left + 's', '#9aa', 16); }
+        take(e); m = null;
+      }
       if (m) { take(e); return this.startMove(m, cancelFrom); }
     }
     // normals
@@ -252,7 +256,6 @@ class Fighter {
     if (m.airOnly && !this.airborne) return false;
     this.move = m; this.mf = 0; this.state = 'move'; this.connected = null; this.hitMap = new Map(); this.moveLanded = false;
     this.lastMove = m; this.whiffRec = 0;
-    if (m.onStart) m.onStart(this, m);
     if (m.kind !== 'normal' && m.kind !== 'throw') { this.meter += 6; if (this.def.lines && this.def.lines.moves && Math.random() < 0.18) this.say(pick(this.def.lines.moves), 70); }
     if (!this.airborne && !m.vel) this.vx *= 0.3;
     if (m.air && this.airborne && !m.vel && !m.keepMomentum) this.vy = Math.min(this.vy, 0) * 0.3;
