@@ -378,6 +378,7 @@ const Combat = {
   beamOrigin(bm) { return bm.b.from === 'mouth' ? bm.owner.mouth() : bm.owner.hand(); },
   beamAngle(bm) {
     let a = bm.b.angle || 0;
+    if (bm.b.sweepTo !== undefined) a += (bm.b.sweepTo - a) * clamp(bm.t / Math.max(1, bm.b.dur), 0, 1); // sweeping beam
     // ultimate beams track their target (within ~35°) so they can be comboed into juggles
     if (bm.b.ultConnect && bm.owner.opp) { const [ox, oy] = this.beamOrigin(bm), o = bm.owner.opp; a = clamp(Math.atan2((o.y - o.h / 2) - oy, Math.max(40, Math.abs(o.x - ox))), -0.6, 0.6); }
     return bm.owner.facing > 0 ? a : Math.PI - a;
