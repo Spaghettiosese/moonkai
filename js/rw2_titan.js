@@ -21,7 +21,7 @@
   PxModel.install(def, { extra: { front(g, P, s, m) { if (s.atk) { const [hx, hy] = P.fH; g.line([[hx + 4, hy - 6], [hx + 26, hy - 10]], '#fff3c0', 1.6); g.line([[hx + 4, hy + 4], [hx + 24, hy + 8]], '#fff3c0', 1.4); } } } });
 
   // ---- GRIT ----
-  Object.assign(def, {
+  Rw2.merge(def, {
     gauge: { name: 'GRIT', max: 100, color: '#e0a020', label: f => (f.unstopT > 0 ? '· UNSTOPPABLE' : '') },
     passive: ['Grit', 'Hits he takes and lands fill GRIT. Full GRIT = UNSTOPPABLE for 5s: super armor on everything and +25% damage.'],
     onRoundStart: f => { f.gauge = 0; f.unstopT = 0; },

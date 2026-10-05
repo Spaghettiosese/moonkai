@@ -19,7 +19,7 @@
   });
   PxModel.install(def, {});
   const strata = (f, n) => { f.gauge = clamp((f.gauge || 0) + n, 0, 100); };
-  Object.assign(def, {
+  Rw2.merge(def, {
     gauge: { name: 'STRATA', max: 100, color: '#8bd070', label: f => ((f.gauge || 0) >= 50 ? '· FIRM' : '') },
     passive: ['Bedrock', 'Takes 15% less damage standing or blocking. Standing still builds STRATA, which makes her Stone Pillar huge.'],
     onRoundStart: f => { f.gauge = 0; },

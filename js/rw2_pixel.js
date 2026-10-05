@@ -21,11 +21,11 @@
     pxCount(d = 0, n = 10) { for (let i = 0; i < n; i++) this.fm({ f: 660, ratio: 1, index: 0, dur: .1, vol: .1, type: 'square', delay: d + i * .5 }); },
   });
   PxModel.install(def, { post(c, v, P, s, m) { const t = v.anim || 0; if (v.transformed || (v.gauge || 0) >= 100) { c.save(); c.globalCompositeOperation = 'lighter'; for (let i = 0; i < 6; i++) { c.fillStyle = i % 2 ? '#5aff8a' : '#ff5aaa'; c.fillRect(Math.round((P.hip[0] - 30 + ((t * 80 + i * 19) % 60)) / 3) * 3, Math.round((P.hip[1] - 90 + (i * 29 % 80)) / 3) * 3, 6, 3); } c.restore(); } } });
-  Object.assign(def, {
+  Rw2.merge(def, {
     gauge: { name: 'SCORE', max: 100, color: '#ffd35a', label: f => ((f.gauge || 0) >= 100 ? '· GOLDEN POWER-UP READY' : '') },
     passive: ['Extra Life', 'Once per round a lethal hit leaves her at 1 HP with 2s of invincibility. Hits add SCORE; at 100 her next Power-Up is Golden (two buffs).'],
     onHit: (a, t, dmg) => { a.gauge = Math.min(100, (a.gauge || 0) + 3 + dmg * .02); },
-    onRoundStart: f => { f.gauge = 0; },
+    onRoundStart: f => { f.gauge = 0; f.oneUp = false; },
   });
   PxKit.setMove(def, '2S', mk({ name: 'Power-Up', desc: 'Grabs a random power-up: speed, damage, shield or a heal. With a full SCORE it is GOLDEN: two buffs at once.', pose: 'charge', s: 14, a: 1, r: 14, cd: 4, ai: { min: 200, max: 2000, use: 'buff' },
     ev: { 4: () => sfx('pxCoin'), 14: f => { const gold = (f.gauge || 0) >= 100; if (gold) f.gauge = 0; const opts = [['SPEED UP', { haste: 1 }], ['POWER UP', { power: 1 }], ['SHIELD', { shield: 160 }], ['1-UP FOOD', { heal: 120 }]]; const n = gold ? 2 : 1; const picks = opts.sort(() => Math.random() - .5).slice(0, n); for (const [nm, ef] of picks) Combat.buff(f, ef, 6, (gold ? 'GOLDEN ' : '') + nm); sfx('pxPower'); } } }));

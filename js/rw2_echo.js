@@ -19,7 +19,7 @@
   });
   PxModel.install(def, { post(c, v, P, s, m) { if (v.status && v.status.slow) { c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(136,240,224,.5)'; c.lineWidth = 2; c.beginPath(); c.arc(P.hip[0], P.hip[1] - 30, 70, 0, 7); c.stroke(); c.restore(); } } });
   const reso = (f, n) => { if (f.resoT > 0) return; f.gauge = clamp((f.gauge || 0) + n, 0, 100); if (f.gauge >= 100) { f.gauge = 0; f.resoT = 6 * FPS; Game.popWorld(f.x, f.y - f.h - 40, 'RESONANCE', '#88f0e0', 24); sfx('ecPing', 0, 1.5); } };
-  Object.assign(def, {
+  Rw2.merge(def, {
     gauge: { name: 'RESONANCE', max: 100, color: '#88f0e0', label: f => (f.resoT > 0 ? '· RESONATING' : '') },
     passive: ['Resonance', 'Blocking and landing hits build RESONANCE. Full: for 6s every echo comes back three times.'],
     onRoundStart: f => { f.gauge = 0; f.resoT = 0; },

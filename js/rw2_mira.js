@@ -20,7 +20,7 @@
   });
   PxModel.install(def, { post(c, v, P, s, m) { if (v.status && v.status.slow) return; if (v.flood) { c.save(); c.globalCompositeOperation = 'lighter'; for (let i = 0; i < 6; i++) { c.fillStyle = 'rgba(120,220,255,.6)'; c.fillRect(P.hip[0] - 30 + ((v.anim * 40 + i * 13) % 60), P.hip[1] - 80 + i * 14, 5, 5); } c.restore(); } } });
   const tide = (f, n) => { if (f.floodT > 0) return; f.gauge = clamp((f.gauge || 0) + n, 0, 100); if (f.gauge >= 100) { f.gauge = 0; f.floodT = 6 * FPS; Game.popWorld(f.x, f.y - f.h - 40, 'FLOOD', '#3ac8ff', 26); sfx('miWave', 0, 1.4); Cam.shake = 8; } };
-  Object.assign(def, {
+  Rw2.merge(def, {
     gauge: { name: 'TIDE', max: 100, color: '#3ac8ff', label: f => (f.floodT > 0 ? '· FLOOD' : '') },
     passive: ['High Tide', 'Her water pushes enemies further and slows them. Every water hit raises the TIDE; at 100 the FLOOD rises for 6s (+20% damage, soaking hits).'],
     onRoundStart: f => { f.gauge = 0; f.floodT = 0; },

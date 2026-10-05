@@ -19,7 +19,7 @@
   });
   PxModel.install(def, { post(c, v, P, s, m) { const t = v.anim || 0; c.save(); c.globalCompositeOperation = 'lighter'; for (let i = 0; i < 3; i++) { const a = t * 2.4 + i * 2.094; c.fillStyle = i % 2 ? 'rgba(138,122,255,.9)' : 'rgba(210,200,255,.9)'; c.fillRect(Math.round(P.sh[0] + Math.cos(a) * 54), Math.round(P.sh[1] + 20 + Math.sin(a) * 18), 6, 6); } c.restore(); } });
   const weigh = (a, t, n = 1) => { if (!t || t.state === 'ko') return; Combat.mark(t, a, 'weight', n, { max: 5, dur: 8, color: '#8a7aff', label: 'WEIGHT', onMax: tt => { delete tt.marks.weight; tt.vy = 1200; tt.status.stun = .8; tt.move = null; Game.popWorld(tt.x, tt.y - tt.h - 40, 'CRUSHED', '#8a7aff', 26); sfx('onCrush'); Cam.shake = 10; } }); if (t.status) t.status.slow = Math.max(t.status.slow || 0, .3 + (Combat.markCount(t, 'weight') || 0) * .15); };
-  Object.assign(def, { passive: ['Weight', 'Each gravity hit adds WEIGHT to the foe (max 5): slower, lower jumps. At 5 they are CRUSHED to the floor and stunned.'], onHit: (a, t) => { if (a.move && (a.move.kind === 'special')) weigh(a, t); } });
+  Rw2.merge(def, { passive: ['Weight', 'Each gravity hit adds WEIGHT to the foe (max 5): slower, lower jumps. At 5 they are CRUSHED to the floor and stunned.'], onHit: (a, t) => { if (a.move && (a.move.kind === 'special')) weigh(a, t); } });
   Combat.hz.onStones = function (h) {
     const f = h.owner; if (!f || f.state === 'ko') return false; h.x = f.x;
     if (h.t % 18 === 9) for (const e of Combat.targets(f.side)) if (Math.abs(e.x - h.x) < 150 && e.y > -200) { Combat.resolveHit(e, f, H_({ dmg: h.dmg || 24, guard: 'mid', hs: 10, kb: [Math.sign(e.x - h.x || 1) * 160, -120], sfx: 'm' }), { proj: true, fromX: h.x }); weigh(f, e); sfx('onStone'); }

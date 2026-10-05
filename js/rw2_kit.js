@@ -1,5 +1,16 @@
 // Small shared helpers for the second wave of reworks (rw2_*.js).
 const Rw2 = {
+  // merge passive/mechanic props into a def without losing the ones the original spec already had: handlers are chained
+  // (old first), multiplicative hooks are multiplied, everything else is assigned.
+  merge(def, props) {
+    for (const [k, v] of Object.entries(props)) {
+      const old = def[k];
+      if ((k === 'passiveDmg' || k === 'passiveArmor') && typeof old === 'function') def[k] = (...a) => old(...a) * v(...a);
+      else if (['onHit', 'onHurt', 'passiveTick', 'onRoundStart'].includes(k) && typeof old === 'function') def[k] = (...a) => { old(...a); return v(...a); };
+      else def[k] = v;
+    }
+    return def;
+  },
   // a telegraphed column that hits everything in it, with the pillar visual. o: {r, life, color, dmg, status, move, kb, launch, guard, hs, onHit, after, shake}
   pillar(f, x, o = {}) {
     x = clamp(x, 40, Arena.stage.width - 40);
