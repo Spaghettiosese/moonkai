@@ -679,10 +679,74 @@
     c.fillStyle = '#ff8a3a'; c.fillRect(44, 80, 12, 5); star(c, 50, 90, 3, '#ff8a3a');
     if (F) star(c, 66, 38, 3, '#fff');
   };
+
+  // ---- DETONATOR ----
+  FACE.detonator = (c, F) => {
+    bg(c, { top: F ? '#1c3a08' : '#3a1c06', bot: '#0a0402', glow: F ? 'rgba(122,255,58,.45)' : 'rgba(255,170,40,.4)', streak: F ? 'rgba(122,255,58,.16)' : 'rgba(255,140,30,.16)', stars: F ? '#b0ff7a' : '#ffd890', starN: 12 });
+    add(c, () => { for (const [x, y, r] of [[14, 24, 9], [88, 20, 7], [84, 70, 10]]) { c.fillStyle = F ? 'rgba(122,255,58,.5)' : 'rgba(255,140,30,.6)'; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); glow(c, x, y, r * 2.5, F ? 'rgba(180,255,120,.4)' : 'rgba(255,220,100,.4)'); } });
+    for (let i = 0; i < 5; i++) shape(c, [[34 + i * 8, 34], [37 + i * 8, 4 + (i === 2 ? -4 : (i % 2) * 6)], [40 + i * 8, 34]], ['#ff7a2a', '#a82a08'], { line: 1.3, shine: false });
+    shoulders(c, '#ffd02a', { trim: '#1a1a1a' });
+    shape(c, [[36, 76], [50, 88], [64, 76], [58, 100], [42, 100]], '#3a3a3a', { line: 1.2 }); star(c, 50, 94, 4, '#ff3a1a');
+    const P = head(c, { skin: '#c89a70', w: 21, chin: 77, jaw: .3, top: 26 });
+    shape(c, [[28, 38], [30, 28], [70, 28], [72, 38], [68, 34], [32, 34]], ['#ffd02a', '#b8901a'], { line: 1.5, shine: false });
+    shape(c, [[27, 44], [73, 44], [71, 58], [29, 58]], ['#1c1c1c', '#050505'], { line: 1.6, shine: false });
+    for (const s of [-1, 1]) { add(c, () => glow(c, 50 + s * 12, 51, F ? 14 : 10, F ? 'rgba(122,255,58,.9)' : 'rgba(255,90,26,.9)')); shape(c, [[50 + s * 4, 47], [50 + s * 20, 47], [50 + s * 19, 55], [50 + s * 5, 55]], F ? '#c8ff9a' : '#ff7a3a', { smooth: true, line: 1, shine: false }); }
+    brows(c, { y: 42, tilt: -1.4, col: '#6a2a08', len: 9, th: 2.4 });
+    mouth(c, 'open', { y: 66, w: 9 }); c.fillStyle = 'rgba(40,20,10,.5)'; c.fillRect(32, 62, 3, 2); c.fillRect(65, 62, 3, 2); nose(c, { y: 61 });
+    c.fillStyle = '#ffd02a'; c.beginPath(); c.moveTo(50, 36); c.lineTo(45, 29); c.lineTo(55, 29); c.fill();
+  };
+  // ---- WARDEN ----
+  FACE.warden = (c, F) => {
+    bg(c, { top: '#0c0c14', bot: '#020204', glow: F ? 'rgba(255,90,26,.4)' : 'rgba(170,170,190,.22)', streak: 'rgba(170,170,190,.08)', stars: '#aab', starN: 6 });
+    c.strokeStyle = '#4a4a5a'; c.lineWidth = 6; for (let i = 0; i < 6; i++) { c.beginPath(); c.moveTo(8 + i * 17, 0); c.lineTo(8 + i * 17, 100); c.stroke(); }
+    c.strokeStyle = '#8a8a9a'; c.lineWidth = 5; c.lineCap = 'round'; for (let i = 0; i < 9; i++) { c.beginPath(); c.ellipse(10 + i * 10, 78 + Math.sin(i) * 3, 5, 3.2, 0, 0, 7); c.stroke(); }
+    shoulders(c, '#3a3a4a', { trim: '#ffd35a' });
+    for (const s of [-1, 1]) { shape(c, [[50 + s * 16, 88], [50 + s * 24, 62], [50 + s * 50, 56], [50 + s * 52, 88], [50 + s * 40, 100]], ['#7a7a8a', '#24242e'], { line: 1.8, shine: '#d8d8e8', shineLines: [[50 + s * 28, 66, 50 + s * 40, 60, 50 + s * 48, 64]] }); for (const [x, y] of [[50 + s * 30, 66], [50 + s * 42, 62]]) circ(c, x, y, 2, '#ffd35a'); }
+    shape(c, [[26, 58], [26, 34], [38, 18], [50, 14], [62, 18], [74, 34], [74, 58], [68, 76], [58, 84], [50, 86], [42, 84], [32, 76]], ['#6a6a7a', '#1e1e28'], { line: 2, shine: '#d8d8e8', shineLines: [[32, 28, 38, 20, 50, 16]] });
+    shape(c, [[30, 42], [70, 42], [68, 52], [32, 52]], '#06060a', { line: 1.4, shine: false });
+    add(c, () => glow(c, 50, 47, F ? 22 : 14, 'rgba(255,90,26,.9)')); shape(c, [[34, 45], [66, 45], [65, 49], [35, 49]], F ? '#fff0c0' : '#ff7a2a', { line: 0, shine: false });
+    shape(c, [[36, 60], [64, 60], [60, 78], [40, 78]], ['#2a2a34', '#0a0a10'], { line: 1.4, shine: false }); c.strokeStyle = '#8a8a9a'; c.lineWidth = 1.4; for (let x = 41; x < 60; x += 4) { c.beginPath(); c.moveTo(x, 62); c.lineTo(x, 76); c.stroke(); }
+    shape(c, [[46, 8], [54, 8], [56, 18], [44, 18]], F ? '#ffd35a' : '#8a8a9a', { line: 1.2, shine: false });
+    if (F) add(c, () => { c.strokeStyle = 'rgba(255,90,26,.8)'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(34, 24); c.lineTo(40, 34); c.lineTo(36, 40); c.moveTo(66, 24); c.lineTo(60, 34); c.lineTo(64, 40); c.stroke(); });
+  };
+  // ---- BRULEE ----
+  FACE.brulee = (c, F) => {
+    bg(c, { top: F ? '#4a2a0c' : '#2a1a0c', bot: '#0a0602', glow: F ? 'rgba(255,170,60,.5)' : 'rgba(255,210,150,.28)', rays: 'rgba(255,230,170,.08)', rayN: 12, stars: '#ffe0a0', starN: 8 });
+    add(c, () => { for (const [x, y] of [[14, 74], [86, 66]]) { glow(c, x, y, 10, 'rgba(255,120,30,.8)'); c.fillStyle = 'rgba(255,150,40,.8)'; c.beginPath(); c.arc(x, y, 5, 0, 7); c.fill(); } });
+    shoulders(c, '#f4f4f4', { trim: '#c0c0c0' });
+    shape(c, [[38, 76], [50, 88], [62, 76], [58, 100], [42, 100]], '#fff', { line: 1.2 }); for (const y of [84, 90]) circ(c, 50, y, 2, '#c01010');
+    const P = head(c, { skin: '#f0c8a4', w: 23, chin: 77, jaw: .2, top: 30, blush: true, blushCol: 'rgba(240,100,100,.35)' });
+    shape(c, [[30, 46], [30, 36], [38, 32], [34, 44]], '#3a2a1a', { line: 1, shine: false }); shape(c, [[70, 46], [70, 36], [62, 32], [66, 44]], '#3a2a1a', { line: 1, shine: false });
+    const tall = F ? 1.35 : 1;
+    shape(c, [[28, 38], [72, 38], [74, 32], [26, 32]], '#fff', { line: 1.5, shine: false });
+    shape(c, [[30, 34], [24, 18], [30, 6 - 8 * (tall - 1)], [40, 2 - 10 * (tall - 1)], [50, -4 - 12 * (tall - 1)], [60, 2 - 10 * (tall - 1)], [70, 6 - 8 * (tall - 1)], [76, 18], [70, 34]], ['#ffffff', '#cdd0d8'], { smooth: true, line: 1.6, shine: '#fff', shineLines: [[34, 14, 46, 4, 62, 8]] });
+    eyes(c, { y: 52, d: 11, w: 6.2, h: 4.4, iris: F ? '#ff8a2a' : '#3a2a1a', glow: F ? 'rgba(255,140,40,.6)' : null, lid: .3, tilt: -1.6, white: '#fffaf0' });
+    brows(c, { y: 44, tilt: -2.4, col: '#3a2a1a', len: 10, th: 3, d: 11 });
+    nose(c, { y: 60 });
+    shape(c, [[26, 63], [44, 60], [50, 64], [56, 60], [74, 63], [64, 70], [50, 68], [36, 70]], ['#4a3422', '#1a1008'], { smooth: true, line: 1.4, shine: false });
+    mouth(c, 'open', { y: 71, w: 7 });
+  };
+  // ---- BEAT ----
+  FACE.beat = (c, F) => {
+    bg(c, { top: F ? '#0e1a3a' : '#0a0e20', bot: '#030308', glow: F ? 'rgba(255,90,200,.45)' : 'rgba(90,255,224,.4)', rings: 'rgba(90,255,224,.14)', stars: '#5affe0', starN: 14 });
+    add(c, () => { for (let i = 0; i < 4; i++) { c.strokeStyle = `rgba(${F ? '255,90,200' : '90,255,224'},${.5 - i * .1})`; c.lineWidth = 3; c.beginPath(); c.arc(50, 50, 34 + i * 10, -.7, .7); c.stroke(); c.beginPath(); c.arc(50, 50, 34 + i * 10, Math.PI - .7, Math.PI + .7); c.stroke(); } });
+    // afro
+    shape(c, [[16, 56], [10, 36], [18, 16], [34, 6], [50, 2], [66, 6], [82, 16], [90, 36], [84, 56], [74, 42], [26, 42]], ['#2a2a2a', '#050505'], { smooth: true, line: 1.7, shine: '#6a6a6a', shineLines: [[20, 28, 34, 10, 56, 6]] });
+    shoulders(c, '#1a1a2a', { trim: F ? '#ff5ac8' : '#5affe0' });
+    shape(c, [[36, 78], [50, 90], [64, 78], [58, 100], [42, 100]], F ? '#ff5ac8' : '#5affe0', { line: 1.2, shine: false }); c.fillStyle = '#0a0a1a'; star(c, 50, 92, 4, '#0a0a1a');
+    const P = head(c, { skin: '#a07a60', w: 18.5, chin: 76, jaw: .55 });
+    shape(c, [[30, 34], [34, 28], [66, 28], [70, 34], [64, 36], [36, 36]], ['#2a2a2a', '#050505'], { smooth: true, line: 1.2, shine: false });
+    shape(c, [[28, 44], [72, 44], [70, 56], [30, 56]], ['#14141e', '#02020a'], { line: 1.5, shine: false }); c.fillStyle = 'rgba(255,255,255,.35)'; c.fillRect(34, 46, 12, 2); c.fillRect(54, 46, 12, 2);
+    add(c, () => { glow(c, 38, 50, 8, F ? 'rgba(255,90,200,.7)' : 'rgba(90,255,224,.7)'); glow(c, 62, 50, 8, F ? 'rgba(255,90,200,.7)' : 'rgba(90,255,224,.7)'); });
+    mouth(c, 'grin', { y: 67, w: 8.5 }); nose(c);
+    // headphones
+    c.strokeStyle = '#1a1a2a'; c.lineWidth = 5; c.beginPath(); c.arc(50, 52, 31, Math.PI * 1.05, Math.PI * 1.95); c.stroke(); c.strokeStyle = F ? '#ff5ac8' : '#5affe0'; c.lineWidth = 1.6; c.stroke();
+    for (const s of [-1, 1]) { shape(c, [[50 + s * 29, 44], [50 + s * 36, 44], [50 + s * 36, 64], [50 + s * 29, 64]], ['#2a2a3a', '#0a0a12'], { smooth: true, line: 1.5, shine: false }); circ(c, 50 + s * 33, 54, 2.4, F ? '#ff5ac8' : '#5affe0'); }
+  };
 })();
 
 (() => {
-  for (const id of ['vex', 'volt', 'glacia', 'nyx', 'gear', 'titan', 'terra', 'echo', 'mira', 'onyx', 'pixel', 'kage', 'arachna', 'hex', 'maximus', 'rex', 'helios', 'luna', 'cipher', 'fang', 'hoshi', 'mortis', 'chrome', 'titania', 'vulcan', 'spectre', 'nova', 'ironjaw', 'viper', 'karma', 'dune', 'blitz', 'morph', 'kingpin', 'quanta', 'abyss', 'roo', 'omega', 'tommy', 'rose', 'cosmo']) {
+  for (const id of ['vex', 'volt', 'glacia', 'nyx', 'gear', 'titan', 'terra', 'echo', 'mira', 'onyx', 'pixel', 'kage', 'arachna', 'hex', 'maximus', 'rex', 'helios', 'luna', 'cipher', 'fang', 'hoshi', 'mortis', 'chrome', 'titania', 'vulcan', 'spectre', 'nova', 'ironjaw', 'viper', 'karma', 'dune', 'blitz', 'morph', 'kingpin', 'quanta', 'abyss', 'roo', 'omega', 'tommy', 'rose', 'cosmo', 'detonator', 'warden', 'brulee', 'beat']) {
     const d = charById(id); if (!d || !FACE[id]) continue;
     const prev = d.drawPortrait;
     const px = PxKit.portrait(id + '_face', (c, o, def) => FACE[id](c, !!o.form, def || d), { res: 100, levels: 14, dither: .14, outline: true });
