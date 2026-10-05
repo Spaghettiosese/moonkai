@@ -1,0 +1,49 @@
+// ============================================================
+//  MOONKAI — KARMA, the Balanced Monk. Pixel remake + a real kit.
+//
+//  DEBT (gauge, now visible)  30% of the damage she takes is stored; her next special repays it as bonus damage (up to +130%).
+//  NIRVANA   WHEEL OF RECKONING (5S) three wheels, one for each sin, RETURN TENFOLD (6S) a counter that repays everything,
+//            LOTUS THRONE (2S) a rising spin that leaves a lotus zone, ENLIGHTENMENT (4S) clears her debt as health and a shield,
+//            DESCENDING DHARMA (jS).   SAMSARA (form ult)   the wheel turns once for every sin.
+// ============================================================
+(() => {
+  const sfx = PxKit.sfx, def = charById('karma');
+  Object.assign(Sfx, {
+    kmBowl(d = 0, p = 1) { this.fm({ f: 262 * p, ratio: 2.76, index: 60, dur: 2.4, vol: .18, delay: d, wet: .9 }); this.fm({ f: 392 * p, ratio: 2.76, index: 40, dur: 2, vol: .09, delay: d + .05, wet: .9 }); },
+    kmWheel(d = 0) { this.nsweep({ f0: 500, f1: 3000, dur: .3, vol: .14, q: 2, delay: d, wet: .5 }); this.kmBowl(d + .05, 1.5); },
+    kmPalm(d = 0) { this.impact(.5, d); this.kmBowl(d, 2); },
+    kmOm(d = 0, dur = 2.6) { this.voice({ f: 110, to: 108, dur, vol: .26, type: 'sine', delay: d, wet: .8 }); this.voice({ f: 165, to: 162, dur, vol: .12, type: 'triangle', delay: d, wet: .8, n: 3, det: 12 }); this.voice({ f: 220, to: 216, dur, vol: .08, type: 'sine', delay: d + .2, wet: .8 }); },
+    kmRepay(d = 0) { this.sub({ f: 100, to: 40, dur: .5, vol: .42, delay: d }); this.kmBowl(d, 1.2); this.impact(.9, d); },
+    kmLotus(d = 0) { this.run({ notes: [523, 659, 784, 988, 1175], step: .1, dur: 1.4, vol: .09, bell: true, delay: d, wet: .95 }); },
+  });
+  PxModel.install(def, { post(c, v, P, s, m) { if (v.gauge > 50 || v.transformed) { const t = v.anim || 0; c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(255,160,90,.7)'; c.lineWidth = 2; c.beginPath(); c.ellipse(P.head[0], P.head[1] - 18, 14, 4, 0, 0, 7); c.stroke(); c.restore(); } } });
+  Rw2.merge(def, {
+    gauge: { name: 'DEBT', max: 100, color: '#ffa05a', label: f => ((f.gauge || 0) >= 70 ? '· HEAVY' : '') },
+    onRoundStart: f => { f.gauge = 0; f.debt = 0; },
+    passiveTick: f => { f.gauge = Math.min(100, (f.debt || 0) / 4); if (f.form && f.st % 30 === 0 && f.hp < f.maxHp) f.hp = Math.min(f.maxHp, f.hp + 2); },
+  });
+  const rep = f => { const d = f.debt || 0; if (d < 20) return 0; return d; };
+  Combat.hz.kmWheelHz = function (h) { const f = h.owner; if (!f) return false; h.x += h.dir * (h.sp || 8); for (const e of Combat.targets(f.side)) if (Math.abs(e.x - h.x) < 46 && e.y > -170 && !h.hit.has(e)) { h.hit.add(e); Combat.resolveHit(e, f, H_({ dmg: h.dmg || 54, guard: 'mid', hs: 16, kb: [260 * h.dir, -200], launch: true, sfx: 'h' }), { proj: true, fromX: h.x, move: h.move }); } return h.t < h.life && h.x > -40 && h.x < Arena.stage.width + 40; };
+  Combat.drawHz.kmWheelHz = (c, h) => { c.save(); c.translate(h.x, h.y0 || -80); c.rotate(h.t * .3 * h.dir); c.strokeStyle = '#ffd890'; c.lineWidth = 4; c.beginPath(); c.arc(0, 0, 32, 0, 7); c.stroke(); for (let i = 0; i < 8; i++) { const a = i / 8 * 6.283; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * 32, Math.sin(a) * 32); c.stroke(); } c.globalCompositeOperation = 'lighter'; glowCircle(c, 0, 0, 56, 'rgba(255,160,90,0.35)', 'rgba(0,0,0,0)'); c.restore(); };
+  Combat.hz.kmLotusHz = function (h) { const f = h.owner; if (!f) return false; if (h.t % 30 === 15) { Combat.healSelf(f, 12); for (const e of Combat.targets(f.side)) if (Math.abs(e.x - h.x) < h.r && e.y > -80) Combat.resolveHit(e, f, H_({ dmg: 16, guard: 'low', hs: 6, kb: [0, 0], sfx: 'l', status: { slow: .5 } }), { proj: true, fromX: h.x }); } return h.t < h.life; };
+  Combat.drawHz.kmLotusHz = (c, h) => { const k = Math.min(1, h.t / 12, (h.life - h.t) / 16); c.save(); c.globalAlpha = k; for (let r = 0; r < 3; r++) for (let i = 0; i < 8; i++) { const a = i / 8 * 6.283 + r * .4; c.fillStyle = r === 0 ? '#ffb090' : r === 1 ? '#ffd0b0' : '#fff0e0'; c.strokeStyle = '#a05a2a'; c.lineWidth = 1; c.beginPath(); c.ellipse(h.x + Math.cos(a) * (28 - r * 8), -6 + Math.sin(a) * (10 - r * 3), 12 - r * 2, 5 - r, a, 0, 7); c.fill(); c.stroke(); } c.restore(); };
+
+  const F5 = mk({ name: 'Wheel of Reckoning', desc: 'Nirvana: three wheels roll out one after another, one for each sin. They repay in kind.', pose: 'punch', s: 12, a: 1, r: 22, cd: 3, ai: { min: 100, max: 1100, use: 'zone' }, ev: { 12: f => { const bonus = 1 + rep(f) / 300; if (rep(f)) f.debt = 0; for (let i = 0; i < 3; i++) Game.later(i * .2, () => { Combat.addHazard({ kind: 'kmWheelHz', owner: f, side: f.side, x: f.x + f.facing * 60, dir: f.facing, sp: 8 + i, y0: -60 - i * 20, dmg: Math.round(48 * bonus), life: 100, hit: new Set(), move: F5 }); sfx('kmWheel'); }); } } });
+  const F6 = Object.assign(Mv.counter({ name: 'Return Tenfold', desc: 'Nirvana: a counter that repays every blow she has ever been dealt: damage scales with her stored DEBT.', window: 32, dmg: 150, resp: 'strike' }), { onHit: (a, t) => { const d = a.debt || 0; if (d > 0) { t.hp = Math.max(1, t.hp - Math.round(d * .8)); Game.popWorld(t.x, t.y - t.h - 40, 'REPAID +' + Math.round(d * .8), '#ffa05a', 24); a.debt = 0; } sfx('kmRepay'); Cam.shake = 10; }, ev: { 2: () => sfx('kmBowl') } });
+  const F2 = mk({ name: 'Lotus Throne', desc: 'Nirvana: a rising staff spin that leaves a lotus zone for 4s: it heals her and slows anyone inside.', pose: 'uppercut', s: 5, a: 14, r: 24, inv: [1, 10], vel: [[5, 19, 120, -820]], hit: { box: [-6, -150, 64, 150], dmg: 74, kb: [100, -900], launch: true, hs: 28, multi: 3, every: 4 }, ai: { min: 0, max: 140, use: 'anti' }, ev: { 3: () => sfx('kmWheel'), 22: f => { Combat.addHazard({ kind: 'kmLotusHz', owner: f, side: f.side, x: f.x, r: 130, life: 240 }); sfx('kmLotus'); } } });
+  const F4 = mk({ name: 'Enlightenment', desc: 'Nirvana: clears her DEBT: each point becomes health, and the rest a shield for 4s.', pose: 'charge', s: 18, a: 1, r: 20, cd: 10, ai: { min: 300, max: 3000, use: 'heal' }, ev: { 2: () => sfx('kmOm', 0, 1.6), 18: f => { const d = f.debt || 0; Combat.healSelf(f, Math.round(120 + d * .6)); Combat.buff(f, { shield: Math.round(100 + d * .3) }, 4, 'ENLIGHTENMENT'); f.debt = 0; sfx('kmLotus'); } } });
+  const FJ = Mv.dive({ name: 'Descending Dharma', desc: 'Nirvana: a spiral dive with the staff; the landing sends a wheel each way.', vx: 500, vy: 1500, hit: { dmg: 92, gb: true }, ev: { 1: () => sfx('kmWheel') }, onHit: a => { for (const s of [-1, 1]) Combat.addHazard({ kind: 'kmWheelHz', owner: a, side: a.side, x: a.x, dir: s, sp: 9, y0: -30, dmg: 40, life: 60, hit: new Set(), move: FJ }); sfx('kmPalm'); } });
+  const FU = PxKit.ult({ id: 'karma_fult', name: 'SAMSARA', desc: 'Nirvana: the wheel turns once for every sin the foe has ever committed. Blockable. Must connect.', pose: 'cast_up', s: 52, dmg: 1280, color: '#ffa05a',
+    cutscene: (a, t) => PxKit.cineUlt(a, t, { name: 'SAMSARA', dur: 8.6, tc: [1.0, 4.6], tf: 5.4, c1: '#ffa05a', c2: '#fff0d0', c3: '#2a1608', motif: 'shockwave', pose: ['idle', 'cast_up', 'cast_up', 'victory'], actorForm: true, cap1: 'Every blow is a loan.', cap2: 'Today I collect.', title: 'SAMSARA', sub: 'THE WHEEL TURNS', size: 104,
+      cues: [[0, () => sfx('kmBowl')], [1.4, () => sfx('kmOm', 0, 4)], [5.4, () => { sfx('kmRepay'); sfx('kmLotus', .3); sfx('boom'); }]],
+      bg: (x, t, k) => { PxKit.sky(x, t, { top: '#0e0804', bot: '#4a2a10', pillars: '#241408', rays: '#ffd890', clouds: '#6a4020' }, k); x.save(); x.globalCompositeOperation = 'lighter'; x.strokeStyle = `rgba(255,200,130,${.2 + .5 * k})`; x.lineWidth = 6; x.translate(W * .5, H * .32); x.rotate(t * .5 * (1 + k)); x.beginPath(); x.arc(0, 0, 150 + k * 80, 0, 7); x.stroke(); for (let i = 0; i < 8; i++) { x.beginPath(); x.moveTo(0, 0); x.lineTo(Math.cos(i * .785) * (150 + k * 80), Math.sin(i * .785) * (150 + k * 80)); x.stroke(); } x.restore(); } }) });
+  FU.ev = PxKit.zoneEv(FU, { at: 52, w: 800, h: 340, back: 300, start: f => { f.say('Be repaid.', 90); sfx('kmOm', 0, 2.4); }, fire: f => { const d = f.debt || 0; f.debt = 0; const t = f.opp; if (t && d) { t.hp = Math.max(1, t.hp - Math.round(d * 1.2)); Game.popWorld(t.x, t.y - t.h - 40, 'REPAID +' + Math.round(d * 1.2), '#ffa05a', 26); } Cam.shake = 20; sfx('kmRepay'); sfx('boom'); } });
+  PxKit.formKit(def, { moves: { '5S': F5, '6S': F6, '2S': F2, '4S': F4, 'jS': FJ }, ult: FU, desc: 'Permanent. Stores twice as much debt, regenerates. New moveset: Wheel of Reckoning, Return Tenfold, Lotus Throne, Enlightenment, Descending Dharma, and the ultimate SAMSARA.' });
+
+  def.ult.ult.cutscene = (a, t) => PxKit.cineUlt(a, t, { name: 'WHEEL OF KARMA', dur: 8.0, tc: [1.0, 4.0], tf: 4.8, c1: '#ffa05a', c2: '#fff0d0', c3: '#2a1608', motif: 'shockwave', pose: ['idle', 'charge', 'cast', 'victory'], cap1: 'I did not strike first.', cap2: 'I only finish.', title: 'WHEEL OF KARMA', sub: 'PAID IN FULL', size: 98,
+    cues: [[0, () => sfx('kmBowl')], [1.4, () => sfx('kmOm', 0, 3)], [4.8, () => { sfx('kmRepay'); sfx('boom'); }]],
+    bg: (x, t, k) => PxKit.sky(x, t, { top: '#0e0804', bot: '#3a2410', pillars: '#241408', rays: '#ffd890', clouds: '#5a3818' }, k) });
+  def.transformCutscene = f => PxKit.cineForm(f, { name: 'NIRVANA', dur: 6.6, tc: [1.0, 3.6], tf: 3.9, c1: '#ffa05a', c2: '#ffffff', c3: '#2a1608', motif: 'rise', pose: ['idle', 'charge', 'victory'], lift: 36, cap1: 'Every debt, forgiven.', cap2: 'Not forgotten.', title: 'NIRVANA', sub: 'KARMA', size: 108,
+    cues: [[0, () => sfx('kmBowl')], [1.4, () => sfx('kmOm', 0, 3.4)], [3.9, () => { sfx('kmLotus'); sfx('kmBowl', 0, .8); sfx('boom'); }]],
+    bg: (x, t, k) => PxKit.sky(x, t, { top: '#0e0804', bot: '#4a2a10', pillars: '#241408', rays: '#ffd890', clouds: '#6a4020' }, k) });
+})();
