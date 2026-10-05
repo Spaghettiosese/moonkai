@@ -1,0 +1,54 @@
+// ============================================================
+//  MOONKAI — ABYSS, the Thing Below. Pixel remake + a real kit.
+//
+//  DEPTH (new gauge)  every grab and tentacle hit pulls the foe deeper. At 100 the foe is DROWNING for 5s: slowed, and every special
+//                     of his drags them a little further in.
+//  MANY ARMS (passive)  normals have extra reach; grabs have more range (as before).
+//  KRAKEN   INK STORM (5S) a cloud that hangs and chokes, TENTACLE SEIZE (6S) a very long grab and a throw, MAELSTROM BURST (2S) five
+//           tentacles in a row, CRUSHING COIL (4S) pulls and holds, LEVIATHAN DROP (jS).   THE DEEP CALLS (form ult).
+// ============================================================
+(() => {
+  const sfx = PxKit.sfx, def = charById('abyss');
+  Object.assign(Sfx, {
+    abSlosh(d = 0) { this.nsweep({ f0: 600, f1: 140, dur: .5, vol: .22, type: 'lowpass', delay: d, wet: .6 }); this.sub({ f: 70, to: 40, dur: .4, vol: .3, delay: d }); },
+    abWhip(d = 0) { this.nsweep({ f0: 800, f1: 3500, dur: .16, vol: .2, q: 1.5, delay: d, wet: .4 }); this.impact(.5, d + .12); },
+    abBubbles(d = 0, n = 8) { for (let i = 0; i < n; i++) this.voice({ f: 200 + Math.random() * 400, to: 700, dur: .08, vol: .08, delay: d + i * .07, wet: .6 }); },
+    abMoan(d = 0, dur = 2.4) { this.voice({ f: 60, to: 38, dur, vol: .36, type: 'sine', delay: d, wet: .8 }); this.voice({ f: 120, to: 76, dur, vol: .16, type: 'sawtooth', lp: 400, n: 3, det: 30, delay: d, wet: .8 }); this.nsweep({ f0: 200, f1: 50, dur, vol: .12, delay: d, wet: .8 }); },
+    abSurface(d = 0) { this.riser(1.4, .26, d, 40, 600); this.impact(1, d + 1.4); this.abSlosh(d + 1.4); },
+    abInk(d = 0) { this.nsweep({ f0: 1400, f1: 200, dur: .6, vol: .18, type: 'lowpass', delay: d, wet: .5 }); this.abBubbles(d, 5); },
+  });
+  PxModel.install(def, {});
+  const deepen = (a, t, n) => { if (!t || t.state === 'ko') return; a.gauge = clamp((a.gauge || 0) + n, 0, 100); if (a.gauge >= 100) { a.gauge = 0; t.status.drown = 5; t.status.slow = Math.max(t.status.slow || 0, 5); a.drownT = 5 * FPS; Game.popWorld(t.x, t.y - t.h - 40, 'DROWNING', '#3affc8', 26); sfx('abMoan', 0, 1.4); Cam.shake = 8; } };
+  Rw2.merge(def, {
+    gauge: { name: 'DEPTH', max: 100, color: '#3affc8', label: f => (f.drownT > 0 ? '· DROWNING' : '') },
+    passive: ['Many Arms', 'Normals have extra reach; grabs have more range. Every grab and tentacle hit raises DEPTH; at 100 the foe is DROWNING for 5s: slowed, and dragged deeper by every special.'],
+    onRoundStart: f => { f.gauge = 0; f.drownT = 0; },
+    onHit: (a, t) => { if (a.move && a.move.kind === 'special') deepen(a, t, 8); else deepen(a, t, 2); if (a.drownT > 0) { t.x += Math.sign(a.x - t.x) * 24; } },
+    passiveTick: f => { if (f.drownT > 0) f.drownT--; },
+  });
+  Combat.hz.abInk = function (h) { const f = h.owner; if (!f) return false; for (const e of Combat.targets(f.side)) if (Math.abs(e.x - h.x) < h.r && e.y > -200) { e.status.slow = Math.max(e.status.slow || 0, .3); if (h.t % 24 === 12) { Combat.resolveHit(e, f, H_({ dmg: 14, guard: 'mid', hs: 5, kb: [0, 0], sfx: 'l' }), { proj: true, fromX: h.x }); deepen(f, e, 3); } } return h.t < h.life; };
+  Combat.drawHz.abInk = (c, h) => { const k = Math.min(1, h.t / 14, (h.life - h.t) / 24); c.save(); c.globalAlpha = k * .8; for (let i = 0; i < 14; i++) { const a = i * .95 + h.t * .02, r = h.r * (.3 + .7 * ((i * .137) % 1)); c.fillStyle = i % 3 ? 'rgba(6,20,26,.8)' : 'rgba(20,60,64,.7)'; c.beginPath(); c.arc(h.x + Math.cos(a) * r, -70 + Math.sin(a) * r * .5, 36 - (i % 4) * 4, 0, 7); c.fill(); } c.restore(); };
+  Combat.hz.abTentacle = function (h) { const f = h.owner; if (!f) return false; if (h.t === h.at) for (const e of Combat.targets(f.side)) if (Math.abs(e.x - h.x) < h.r && e.y > -60) { Combat.resolveHit(e, f, H_({ dmg: 68, guard: 'low', hs: 20, kb: [0, -560], launch: true, status: { slow: 1 }, sfx: 'h' }), { proj: true, fromX: h.x, move: h.move }); deepen(f, e, 10); sfx('abWhip'); } return h.t < h.life; };
+  Combat.drawHz.abTentacle = (c, h) => { const up = h.t >= h.at, k = up ? Math.min(1, (h.t - h.at) / 5) : 0, a = Math.min(1, (h.life - h.t) / 12); c.save(); c.globalAlpha = a; if (!up) { c.strokeStyle = 'rgba(58,255,200,.5)'; c.lineWidth = 2; c.beginPath(); c.ellipse(h.x, -3, h.r, 6, 0, 0, 7); c.stroke(); } else { c.strokeStyle = '#2a7a6a'; c.lineWidth = 16 - 4 * (1 - k); c.lineCap = 'round'; c.beginPath(); c.moveTo(h.x, 0); c.quadraticCurveTo(h.x + 24, -90 * k, h.x - 10, -190 * k); c.stroke(); c.strokeStyle = '#3affc8'; c.lineWidth = 2; for (let i = 0; i < 6; i++) { c.beginPath(); c.arc(h.x + 6 - i * 2, -i * 30 * k - 10, 3, 0, 7); c.stroke(); } } c.restore(); };
+  Combat.hz.abCoil = function (h) { const f = h.owner; if (!f) return false; const t = h.tgt; if (!t || t.state === 'ko') return false; t.x += (f.x + f.facing * 90 - t.x) * .12; t.status.stun = Math.max(t.status.stun || 0, .12); if (h.t % 20 === 10) { Combat.resolveHit(t, f, H_({ dmg: 28, guard: 'mid', hs: 6, kb: [0, 0], sfx: 'm' }), { proj: true, fromX: f.x }); deepen(f, t, 6); } return h.t < h.life; };
+  Combat.drawHz.abCoil = (c, h) => { const t = h.tgt, f = h.owner; if (!t || !f) return; c.save(); c.strokeStyle = '#2a7a6a'; c.lineWidth = 12; c.lineCap = 'round'; c.beginPath(); c.moveTo(f.x, f.y - 50); c.quadraticCurveTo((f.x + t.x) / 2, f.y - 110, t.x, t.y - 60); c.stroke(); for (let i = 0; i < 3; i++) { c.beginPath(); c.ellipse(t.x, t.y - 30 - i * 24, t.w * .8, 7, 0, 0, 7); c.stroke(); } c.restore(); };
+
+  const F5 = mk({ name: 'Ink Storm', desc: 'Kraken: a huge cloud of ink that hangs over the foe for 4s: it slows and chokes.', pose: 'cast', s: 14, a: 1, r: 24, cd: 6, ai: { min: 100, max: 1100, use: 'zone' }, ev: { 3: () => sfx('abBubbles'), 14: f => { const t = f.opp; if (!t) return; Combat.addHazard({ kind: 'abInk', owner: f, side: f.side, x: clamp(t.x, 120, Arena.stage.width - 120), r: 190, life: 240 }); sfx('abInk'); } } });
+  const F6 = Object.assign(Mv.grab({ name: 'Tentacle Seize', desc: 'Kraken: a very long tentacle seizes the foe from across the stage and slams them down.', range: 380, s: 12, grabData: { anim: 'slam', dmg: 240, frames: 46 }, ev: { 4: () => sfx('abWhip') } }), { onHit: (a, t) => { deepen(a, t, 30); sfx('abSlosh'); Cam.shake = 12; } });
+  const F2 = mk({ name: 'Maelstrom Burst', desc: 'Kraken: five tentacles burst out of the floor in a line, one after another.', pose: 'slam', s: 18, a: 1, r: 26, cd: 4, ai: { min: 100, max: 900, use: 'zone' }, ev: { 18: f => { for (let i = 0; i < 5; i++) Combat.addHazard({ kind: 'abTentacle', owner: f, side: f.side, x: clamp(f.x + f.facing * (100 + i * 110), 50, Arena.stage.width - 50), r: 56, life: 50, at: 14 + i * 5, move: F2 }); sfx('abSlosh'); } } });
+  const F4 = mk({ name: 'Crushing Coil', desc: 'Kraken: a tentacle wraps the foe and drags them in close, holding them for 1.4s while it squeezes.', pose: 'cast', s: 14, a: 1, r: 26, cd: 8, ai: { min: 100, max: 700, use: 'zone' }, ev: { 14: f => { const t = f.opp; if (!t || Math.abs(t.x - f.x) > 640 || t.y < -120) return; Combat.addHazard({ kind: 'abCoil', owner: f, side: f.side, x: t.x, tgt: t, life: 84 }); sfx('abWhip'); sfx('abMoan', .1, 1); } } });
+  const FJ = Mv.dive({ name: 'Leviathan Drop', desc: 'Kraken: falls with the whole sea behind him; tentacles burst out around the landing.', vx: 260, vy: 1700, hit: { dmg: 118, gb: true }, ev: { 1: () => sfx('abSlosh') }, onHit: a => { for (const s of [-1, 1]) for (let i = 1; i <= 2; i++) Combat.addHazard({ kind: 'abTentacle', owner: a, side: a.side, x: clamp(a.x + s * i * 100, 50, Arena.stage.width - 50), r: 50, life: 40, at: 6 + i * 4, move: FJ }); deepen(a, a.opp, 12); sfx('abSurface'); } });
+  const FU = PxKit.ult({ id: 'abyss_fult', name: 'THE DEEP CALLS', desc: 'Kraken: the sea comes up through the floor, and every arm it owns takes a piece. Blockable. Must connect.', pose: 'slam', s: 54, dmg: 1320, color: '#3affc8',
+    cutscene: (a, t) => PxKit.cineUlt(a, t, { name: 'THE DEEP CALLS', dur: 8.8, tc: [1.0, 4.8], tf: 5.6, c1: '#3affc8', c2: '#c8fff0', c3: '#02161a', motif: 'shockwave', pose: ['idle', 'charge', 'cast_up', 'victory'], actorForm: true, cap1: 'Down here, there is no up.', cap2: 'Let me show you.', title: 'THE DEEP CALLS', sub: 'DOWN, DOWN', size: 98,
+      cues: [[0, () => sfx('abMoan', 0, 3)], [1.4, () => sfx('abBubbles', 0, 14)], [5.6, () => { sfx('abSurface'); sfx('abWhip', .3); sfx('abMoan', .2, 1.8); sfx('boom'); }]],
+      bg: (x, t, k) => { PxKit.sky(x, t, { top: '#01080c', bot: '#0a3a3a', fog: 'rgba(58,255,200,0.1)', stars: '#8affe0', mount: '#021418' }, k); x.save(); x.strokeStyle = `rgba(42,122,106,${.2 + .6 * k})`; x.lineWidth = 22; x.lineCap = 'round'; for (let i = 0; i < 7; i++) { x.beginPath(); x.moveTo(60 + i * 180, H); x.quadraticCurveTo(60 + i * 180 + Math.sin(t * 1.4 + i) * 90, H * .5, 60 + i * 180 + Math.sin(t + i) * 40, H * (.9 - .6 * k)); x.stroke(); } x.restore(); } }) });
+  FU.ev = PxKit.zoneEv(FU, { at: 54, w: 1000, h: 340, back: 400, start: f => { f.say('Deeper.', 90); sfx('abMoan', 0, 2); }, fire: f => { for (let i = -4; i <= 4; i++) Combat.addHazard({ kind: 'abTentacle', owner: f, side: f.side, x: clamp(f.x + f.facing * i * 120, 50, Arena.stage.width - 50), r: 56, life: 50, at: 8 + Math.abs(i) * 3, move: FU }); const t = f.opp; if (t) deepen(f, t, 100); Cam.shake = 24; sfx('abSurface'); sfx('boom'); } });
+  PxKit.formKit(def, { moves: { '5S': F5, '6S': F6, '2S': F2, '4S': F4, 'jS': FJ }, ult: FU, desc: 'Permanent. Enormous, super armor, longer tentacles. New moveset: Ink Storm, Tentacle Seize, Maelstrom Burst, Crushing Coil, Leviathan Drop, and the ultimate THE DEEP CALLS.' });
+
+  def.ult.ult.cutscene = (a, t) => PxKit.cineUlt(a, t, { name: 'CALL OF THE DEEP', dur: 8.0, tc: [1.0, 4.0], tf: 4.8, c1: '#3affc8', c2: '#c8fff0', c3: '#02161a', motif: 'rift', pose: ['idle', 'charge', 'throw', 'victory'], cap1: 'Something is looking up at you.', cap2: 'It has been for a while.', title: 'CALL OF THE DEEP', sub: 'IT RISES', size: 96,
+    cues: [[0, () => sfx('abMoan', 0, 2.4)], [1.4, () => sfx('abBubbles', 0, 12)], [4.8, () => { sfx('abSurface'); sfx('boom'); }]],
+    bg: (x, t, k) => PxKit.sky(x, t, { top: '#01080c', bot: '#0a3438', fog: 'rgba(58,255,200,0.08)', stars: '#8affe0' }, k) });
+  def.transformCutscene = f => PxKit.cineForm(f, { name: 'KRAKEN', dur: 6.6, tc: [1.0, 3.6], tf: 3.9, c1: '#3affc8', c2: '#c8fff0', c3: '#02161a', motif: 'rise', pose: ['idle', 'charge', 'victory'], lift: 0, cap1: 'You are standing on my roof.', cap2: 'Come in.', title: 'KRAKEN', sub: 'ABYSS', size: 116,
+    cues: [[0, () => sfx('abBubbles', 0, 10)], [1.4, () => sfx('abMoan', 0, 3)], [3.9, () => { sfx('abSurface'); sfx('abMoan', 0, 1.8); sfx('boom'); }]],
+    bg: (x, t, k) => PxKit.sky(x, t, { top: '#01080c', bot: '#0a3438', fog: 'rgba(58,255,200,0.1)', stars: '#8affe0' }, k) });
+})();
