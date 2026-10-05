@@ -246,7 +246,7 @@ const Combat = {
       let a = (p.angle || 0) + (n > 1 ? -p.spread / 2 + p.spread * i / (n - 1) : 0);
       if (p.ultConnect && f.opp) { const o = f.opp; a += clamp(Math.atan2((o.y - o.h / 2) - hy, Math.max(40, Math.abs(o.x - hx))), -1.1, 1.1); }
       const sp = p.speed * (f.form && f.def.form.projSpeed || 1);
-      this.projectiles.push(Object.assign({}, p, {
+      this.projectiles.push(Object.assign({ kb: [180, -40], hs: 20, bs: 14, r: 11, dmg: 40 }, p, {
         owner: f, side: f.side, x: hx + (p.offX || 0) * f.facing, y: hy + (p.offY || 0), vx: Math.cos(a) * sp * f.facing, vy: Math.sin(a) * sp,
         tsFrozen: !!(Game.battle && Game.battle.timeStop && Game.battle.timeStop.by.side === f.side && !p.noFreeze), life: (p.life || 2) * FPS, t: 0, hitCount: 0, hitCd: 0, hitSet: new Set(), move: f.move, facing: f.facing,
       }));
